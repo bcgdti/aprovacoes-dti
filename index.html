@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dti · Aprovações de conteúdo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700;800&family=Red+Hat+Text:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F4F4; --surface:#FFFFFF; --surface-2:#FAFAFA;
+  --ink:#010B0C; --ink-2:#5A6568; --ink-3:#9AA1A4;
+  --line:#E7E8E8; --line-2:#EFEFEF;
+  --accent:#3038D5; --navy:#000066;
+  --radius:16px; --radius-sm:10px; --radius-xs:8px;
+  --pad:28px; --gap:18px; --vpad:40px;
+  --shadow:0 1px 2px rgba(1,11,12,.04), 0 8px 28px -18px rgba(1,11,12,.18);
+  --shadow-pop:0 18px 50px -16px rgba(1,11,12,.28);
+  --font-d:"Red Hat Display",system-ui,sans-serif;
+  --font-t:"Red Hat Text",system-ui,sans-serif;
+}
+:root[data-corners="reto"]{ --radius:4px; --radius-sm:3px; --radius-xs:2px; }
+:root[data-density="compacto"]{ --pad:18px; --gap:12px; --vpad:24px; }
+
+*{ box-sizing:border-box; }
+html,body{ margin:0; height:100%; }
+body{
+  font-family:var(--font-t); color:var(--ink); background:var(--bg);
+  font-size:15.5px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,b,strong{ font-family:var(--font-d); }
+button{ font-family:inherit; cursor:pointer; }
+a{ color:var(--accent); }
+#root{ height:100%; }
+
+/* ───── App shell ───── */
+.app{ height:100%; display:grid; }
+.app.nav-sidebar{ grid-template-columns:264px 1fr; }
+.app.nav-topo{ grid-template-rows:auto 1fr; grid-template-columns:1fr; }
+
+.sidebar{
+  background:var(--surface); border-right:1px solid var(--line);
+  display:flex; flex-direction:column; padding:24px 18px; gap:8px;
+  position:sticky; top:0; height:100vh;
+}
+.topbar{
+  background:var(--surface); border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:28px; padding:0 28px; height:68px;
+  position:sticky; top:0; z-index:30;
+}
+
+.brand{ display:flex; align-items:center; gap:10px; padding:6px 10px 18px; }
+.nav-topo .brand{ padding:0; }
+.brand-mark{
+  width:34px; height:34px; border-radius:10px; background:var(--accent);
+  color:#fff; font-family:var(--font-d); font-weight:800; font-size:34px;
+  line-height:20px; display:flex; align-items:flex-end; justify-content:center;
+  padding-bottom:4px;
+}
+:root[data-corners="reto"] .brand-mark{ border-radius:3px; }
+.brand-text{ font-family:var(--font-d); font-size:18px; letter-spacing:-.01em; color:var(--ink); }
+.brand-text b{ font-weight:800; }
+
+.nav{ display:flex; flex-direction:column; gap:4px; flex:1; }
+.nav-top{ flex-direction:row; flex:0; gap:6px; }
+.navitem{
+  display:flex; align-items:center; gap:12px; padding:11px 14px;
+  border:none; background:transparent; color:var(--ink-2);
+  border-radius:var(--radius-sm); font-size:15px; font-weight:500;
+  text-align:left; width:100%; position:relative; transition:.13s;
+}
+.nav-top .navitem{ width:auto; }
+.navitem:hover{ background:var(--bg); color:var(--ink); }
+.navitem.is-active{ background:color-mix(in srgb, var(--accent) 10%, transparent); color:var(--accent); font-weight:600; }
+.navitem.is-active svg{ stroke-width:2; }
+.nav-badge{
+  margin-left:auto; background:var(--accent); color:#fff; font-size:11.5px;
+  font-weight:700; min-width:20px; height:20px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center; padding:0 5px;
+}
+.nav-top .nav-badge{ margin-left:4px; }
+.sidebar-foot{ border-top:1px solid var(--line); padding-top:14px; margin-top:8px; }
+
+/* ───── User picker ───── */
+.userpick{ position:relative; }
+.nav-topo .userpick{ margin-left:auto; }
+.userpick-btn{
+  display:flex; align-items:center; gap:10px; width:100%; padding:8px 10px;
+  border:1px solid var(--line); background:var(--surface); border-radius:var(--radius-sm);
+  color:var(--ink); font-size:14.5px; font-weight:600; transition:.13s;
+}
+.userpick-btn:hover{ border-color:var(--ink-3); }
+.userpick-btn svg{ margin-left:auto; color:var(--ink-3); }
+.userpick-name{ font-family:var(--font-d); }
+.userpick-scrim{ position:fixed; inset:0; z-index:40; }
+.userpick-menu{
+  position:absolute; bottom:calc(100% + 8px); left:0; right:0; z-index:50;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm);
+  box-shadow:var(--shadow-pop); padding:6px; min-width:200px;
+}
+.nav-topo .userpick-menu{ top:calc(100% + 8px); bottom:auto; right:0; left:auto; }
+.userpick-head{ display:block; font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); padding:8px 10px 4px; font-weight:700; }
+.userpick-opt{
+  display:flex; align-items:center; gap:10px; width:100%; padding:9px 10px;
+  border:none; background:transparent; border-radius:var(--radius-xs); color:var(--ink);
+  font-size:14.5px; font-weight:500; text-align:left;
+}
+.userpick-opt:hover{ background:var(--bg); }
+.userpick-opt.is-active{ color:var(--accent); font-weight:600; }
+
+/* ───── Main / views ───── */
+.main{ overflow-y:auto; overflow-x:hidden; height:100%; }
+.app.nav-topo .main{ height:auto; }
+.view{ max-width:920px; margin:0 auto; padding:var(--vpad) 32px 80px; }
+.view-narrow{ max-width:680px; }
+.view-head{ margin-bottom:26px; }
+.view-head h1{ font-size:29px; font-weight:700; letter-spacing:-.02em; margin:0 0 6px; }
+.view-head p{ color:var(--ink-2); margin:0; max-width:62ch; font-size:15px; }
+
+/* ───── Card / form ───── */
+.card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+.form{ padding:var(--pad); display:flex; flex-direction:column; gap:var(--gap); }
+.form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:var(--gap); }
+.field{ display:flex; flex-direction:column; gap:7px; }
+.field-label{ font-size:13.5px; font-weight:600; color:var(--ink); display:flex; align-items:baseline; gap:8px; }
+.req{ color:#D9501E; }
+.field-hint{ font-weight:400; color:var(--ink-3); font-size:12.5px; }
+.field-error{ color:#D9501E; font-size:12.5px; font-weight:500; }
+.input,.textarea,.select{
+  width:100%; border:1px solid var(--line); background:var(--surface);
+  border-radius:var(--radius-sm); padding:11px 13px; font-family:var(--font-t);
+  font-size:14.5px; color:var(--ink); transition:.13s; outline:none;
+}
+.textarea{ resize:vertical; line-height:1.55; white-space:pre-wrap; }
+.input:focus,.textarea:focus,.select:focus{ border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.input::placeholder,.textarea::placeholder{ color:var(--ink-3); }
+
+.seg{ display:inline-flex; background:var(--bg); border-radius:var(--radius-sm); padding:4px; gap:3px; }
+.seg-btn{ border:none; background:transparent; padding:8px 18px; border-radius:calc(var(--radius-sm) - 3px); font-size:14px; font-weight:600; color:var(--ink-2); transition:.13s; }
+.seg-btn.is-active{ background:var(--surface); color:var(--accent); box-shadow:0 1px 3px rgba(1,11,12,.12); }
+.form-actions{ display:flex; justify-content:flex-end; padding-top:4px; }
+
+.select-wrap{ position:relative; }
+.select{ appearance:none; padding-right:36px; cursor:pointer; }
+.select-chevron{ position:absolute; right:11px; top:50%; transform:translateY(-50%); color:var(--ink-3); pointer-events:none; }
+
+/* ───── Buttons ───── */
+.btn{
+  display:inline-flex; align-items:center; gap:8px; border:1px solid transparent;
+  border-radius:var(--radius-sm); padding:11px 18px; font-size:14.5px; font-weight:600;
+  transition:.14s; white-space:nowrap;
+}
+.btn-sm{ padding:8px 13px; font-size:13.5px; }
+.btn-full{ width:100%; justify-content:center; }
+.btn:disabled{ opacity:.45; cursor:not-allowed; }
+.btn-primary{ background:var(--accent); color:#fff; }
+.btn-primary:not(:disabled):hover{ filter:brightness(1.08); }
+.btn-ghost{ background:transparent; color:var(--ink-2); }
+.btn-ghost:hover{ background:var(--bg); color:var(--ink); }
+.btn-outline{ background:var(--surface); border-color:var(--line); color:var(--ink); }
+.btn-outline:hover{ border-color:var(--accent); color:var(--accent); }
+.btn-success{ background:#0E8A5F; color:#fff; }
+.btn-success:hover{ filter:brightness(1.07); }
+.btn-danger{ background:#D9501E; color:#fff; }
+.btn-danger:hover{ filter:brightness(1.07); }
+.btn-danger-soft{ background:#FDEAE0; color:#C1450F; }
+.btn-danger-soft:hover{ background:#fbded0; }
+
+/* ───── Chip / badge / avatar ───── */
+.chip{
+  display:inline-flex; align-items:center; gap:5px; padding:3px 9px;
+  border-radius:999px; background:var(--bg); color:var(--ink-2);
+  font-size:12.5px; font-weight:600; border:1px solid var(--line-2); white-space:nowrap;
+}
+.chip-muted{ background:transparent; }
+.status-badge{
+  display:inline-flex; align-items:center; gap:7px; padding:5px 11px;
+  border-radius:999px; font-size:12.5px; font-weight:700; white-space:nowrap;
+}
+.status-dot{ width:7px; height:7px; border-radius:50%; }
+.avatar{
+  display:inline-flex; align-items:center; justify-content:center; color:#fff;
+  font-family:var(--font-d); font-weight:700; border-radius:50%; flex-shrink:0;
+}
+
+/* ───── Stat row ───── */
+.stat-row{ display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:22px; }
+.stat{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm);
+  padding:14px 14px; display:flex; flex-direction:column; gap:2px; text-align:left;
+  transition:.13s; align-items:flex-start;
+}
+.stat:hover{ border-color:var(--ink-3); }
+.stat.is-active{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+.stat-num{ font-family:var(--font-d); font-size:24px; font-weight:800; line-height:1; }
+.stat-lab{ font-size:12px; color:var(--ink-2); font-weight:500; }
+
+/* ───── Filters ───── */
+.filters{ display:grid; grid-template-columns:1.6fr 1fr 1fr 1fr; gap:10px; margin-bottom:18px; }
+.search{ display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); padding:0 13px; color:var(--ink-3); }
+.search:focus-within{ border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.search-input{ border:none; outline:none; background:transparent; padding:11px 0; font-family:var(--font-t); font-size:14.5px; color:var(--ink); width:100%; }
+
+/* ───── Queue list ───── */
+.qlist{ display:flex; flex-direction:column; gap:12px; }
+.qitem{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; transition:.14s; }
+.qitem:hover{ border-color:#d8d9d9; }
+.qitem.is-open{ border-color:color-mix(in srgb, var(--accent) 40%, var(--line)); box-shadow:var(--shadow-pop); }
+.qitem-head{ display:flex; align-items:center; gap:16px; width:100%; border:none; background:transparent; padding:18px 22px; text-align:left; }
+.qitem-chevron{ color:var(--ink-3); transition:.18s; display:flex; }
+.qitem.is-open .qitem-chevron{ transform:rotate(180deg); color:var(--accent); }
+.qitem-main{ flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
+.qitem-top{ display:flex; align-items:center; gap:9px; }
+.qitem-id{ font-family:var(--font-d); font-size:12px; font-weight:700; color:var(--ink-3); letter-spacing:.02em; }
+.qitem-title{ font-family:var(--font-d); font-size:16px; font-weight:600; letter-spacing:-.01em; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.qitem-side{ display:flex; align-items:center; gap:14px; flex-shrink:0; }
+
+/* ───── Detail ───── */
+.detail{ padding:4px 22px 24px; border-top:1px solid var(--line-2); display:flex; flex-direction:column; gap:20px; }
+.detail-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; padding-top:18px; }
+.meta{ display:flex; flex-direction:column; gap:5px; }
+.meta-label{ font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3); font-weight:700; }
+.meta-val{ font-size:14.5px; font-weight:500; }
+.meta-person{ display:inline-flex; align-items:center; gap:8px; font-weight:600; }
+
+.block-label{ display:flex; align-items:center; gap:7px; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3); font-weight:700; margin-bottom:9px; white-space:nowrap; }
+.content-block{ position:relative; }
+.content-text{ white-space:pre-wrap; font-size:14.5px; line-height:1.6; color:var(--ink); background:var(--surface-2); border:1px solid var(--line-2); border-radius:var(--radius-sm); padding:16px 18px; }
+.media-link{ display:inline-flex; align-items:center; gap:7px; margin-top:10px; font-size:13.5px; font-weight:600; text-decoration:none; word-break:break-all; }
+.media-link:hover{ text-decoration:underline; }
+
+.ia-result{ background:#F0FAFC; border:1px solid #CDEBF1; border-radius:var(--radius-sm); padding:16px 18px; }
+
+/* ───── Comentários no texto ───── */
+.cc-hint{ font-weight:400; text-transform:none; letter-spacing:0; color:var(--ink-3); }
+.cc-text{ cursor:text; }
+.cc-hl{ background:#FFF0C9; color:inherit; border-bottom:2px solid #FAA919; border-radius:3px; padding:0 1px; cursor:pointer; transition:.13s; }
+.cc-hl:hover,.cc-hl.is-active{ background:#FFE08F; }
+.cc-pop{ position:absolute; z-index:60; width:288px; max-width:calc(100% - 8px); background:var(--surface);
+  border:1px solid var(--line); border-radius:var(--radius-sm); box-shadow:var(--shadow-pop);
+  padding:12px; display:flex; flex-direction:column; gap:9px; animation:toastIn .14s ease; }
+.cc-pop-quote{ font-size:12.5px; font-style:italic; color:var(--ink-2); border-left:2px solid var(--accent); padding-left:9px; line-height:1.4; }
+.cc-pop-actions{ display:flex; justify-content:flex-end; gap:8px; }
+.cc-check{ display:flex; align-items:center; gap:9px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; padding:2px 0; }
+.cc-check input{ width:17px; height:17px; accent-color:var(--accent); cursor:pointer; }
+.cc-list{ margin-top:16px; padding-top:15px; border-top:1px dashed var(--line); display:flex; flex-direction:column; gap:9px; }
+.cc-note{ display:flex; gap:11px; padding:12px 14px; background:var(--surface-2); border:1px solid var(--line-2);
+  border-radius:var(--radius-sm); transition:.13s; }
+.cc-note.is-active{ background:#fff; border-color:#FAA919; box-shadow:0 0 0 1px #FAA919; }
+.cc-note-num{ width:22px; height:22px; border-radius:50%; background:#FAA919; color:#fff; font-family:var(--font-d);
+  font-size:11.5px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.cc-note-body{ flex:1; min-width:0; }
+.cc-note-quote{ display:block; font-style:italic; color:var(--ink-2); font-size:13px; line-height:1.4; margin-bottom:5px; }
+.cc-note-body p{ margin:0 0 7px; font-size:14.5px; line-height:1.5; }
+.cc-note-meta{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-3); font-weight:500; }
+.cc-note-x{ border:none; background:transparent; color:var(--ink-3); padding:3px; border-radius:6px; height:fit-content; align-self:flex-start; }
+.cc-note-x:hover{ background:#FDEAE0; color:#D9501E; }
+.ia-result .block-label{ color:#0A7E94; margin-bottom:7px; }
+.ia-result p{ margin:0; font-size:14px; line-height:1.55; color:#16434C; white-space:pre-wrap; }
+
+.comment-block{ background:var(--surface-2); border:1px solid var(--line-2); border-radius:var(--radius-sm); padding:16px 18px; }
+.comment-block.is-warn{ background:#FEF4EF; border-color:#F6D6C4; }
+.comment-block .block-label{ color:var(--ink-2); text-transform:none; letter-spacing:0; font-size:13px; }
+.comment-block.is-warn .block-label{ color:#C1450F; }
+.comment-date{ font-weight:500; color:var(--ink-3); }
+.comment-block p{ margin:0; font-size:14.5px; line-height:1.55; white-space:pre-wrap; }
+
+/* ───── Action blocks ───── */
+.action-block{ background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:18px 20px; display:flex; flex-direction:column; gap:13px; }
+.action-block.decision{ background:color-mix(in srgb, var(--accent) 5%, var(--surface)); border-color:color-mix(in srgb, var(--accent) 22%, var(--line)); }
+.action-head{ display:flex; align-items:center; gap:8px; font-size:14.5px; white-space:nowrap; }
+.action-head strong{ font-weight:700; }
+.action-head svg{ color:var(--accent); }
+.action-note{ margin:0; font-size:13.5px; color:var(--ink-2); line-height:1.5; }
+.check-steps{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.check-hint{ font-size:12.5px; color:var(--ink-3); font-weight:500; }
+.action-row{ display:flex; gap:10px; justify-content:flex-end; align-items:center; flex-wrap:wrap; }
+
+.info-line{ display:flex; align-items:center; gap:9px; font-size:14px; font-weight:600; color:var(--ink-2); padding:6px 2px; }
+.info-line svg{ color:var(--ink-3); }
+.info-line.ok{ color:#0E8A5F; }
+.info-line.ok svg{ color:#0E8A5F; }
+
+/* ───── Sections / empty ───── */
+.section-label{ display:flex; align-items:center; gap:10px; font-family:var(--font-d); font-size:15px; font-weight:700; margin:8px 0 16px; }
+.section-label.muted{ color:var(--ink-2); margin-top:36px; }
+.count-pill{ background:var(--accent); color:#fff; font-size:12px; font-weight:700; min-width:22px; height:22px; border-radius:11px; display:inline-flex; align-items:center; justify-content:center; padding:0 7px; }
+.empty{ display:flex; flex-direction:column; align-items:center; gap:10px; padding:40px; color:var(--ink-3); text-align:center; background:var(--surface); border:1px dashed var(--line); border-radius:var(--radius); }
+.empty.big{ padding:64px 40px; }
+.empty p{ margin:0; font-size:14.5px; }
+
+/* ───── Toast ───── */
+.toast{ position:fixed; bottom:28px; left:50%; transform:translateX(-50%); z-index:200;
+  display:flex; align-items:center; gap:10px; background:var(--ink); color:#fff;
+  padding:13px 20px; border-radius:999px; font-size:14px; font-weight:600;
+  box-shadow:var(--shadow-pop); animation:toastIn .25s ease; }
+.toast svg{ color:#fff; }
+.toast-success{ background:#0E8A5F; }
+.toast-error{ background:#D9501E; }
+@keyframes toastIn{ from{ opacity:0; transform:translate(-50%,12px); } to{ opacity:1; transform:translate(-50%,0); } }
+
+/* ───── Mobile ───── */
+@media (max-width:760px){
+  .app.nav-sidebar{ grid-template-columns:1fr; grid-template-rows:auto 1fr; }
+  .sidebar{ position:sticky; top:0; height:auto; flex-direction:row; align-items:center;
+    padding:10px 14px; gap:10px; border-right:none; border-bottom:1px solid var(--line); overflow-x:auto; }
+  .sidebar .brand{ padding:0; flex-shrink:0; }
+  .sidebar .brand-text{ display:none; }
+  .sidebar .nav{ flex-direction:row; flex:1; gap:4px; }
+  .sidebar .navitem span:not(.nav-badge){ display:none; }
+  .sidebar .navitem{ padding:10px 12px; }
+  .sidebar .navitem.is-active span:not(.nav-badge){ display:inline; }
+  .sidebar-foot{ border-top:none; padding-top:0; margin-top:0; flex-shrink:0; }
+  .sidebar-foot .userpick-name,.sidebar-foot .userpick-btn svg{ display:none; }
+  .sidebar-foot .userpick-btn{ padding:5px; border:none; }
+  .userpick-menu{ bottom:auto; top:calc(100% + 8px); left:auto; right:0; }
+  .topbar{ gap:12px; padding:0 14px; height:60px; }
+  .topbar .nav-top .navitem span{ display:none; }
+  .topbar .brand-text{ display:none; }
+  .view{ padding:24px 16px 90px; }
+  .view-head h1{ font-size:24px; }
+  .form-grid{ grid-template-columns:1fr; }
+  .stat-row{ grid-template-columns:repeat(3,1fr); }
+  .filters{ grid-template-columns:1fr 1fr; }
+  .search{ grid-column:1/-1; }
+  .detail-grid{ grid-template-columns:1fr 1fr; }
+  .qitem-head{ padding:15px 16px; gap:11px; flex-wrap:wrap; }
+  .qitem-title{ white-space:normal; }
+  .qitem-side{ width:100%; padding-left:34px; justify-content:flex-start; }
+  .detail{ padding:4px 16px 20px; }
+  .action-row{ justify-content:stretch; }
+  .action-row .btn{ flex:1; justify-content:center; }
+}
+</style>
+<script>
+// ════════════════════════════════════════════════════════════════
+// CONFIGURAÇÃO — cole aqui a URL do seu Google Apps Script
+// (termina com /exec). Veja INSTRUCOES.md, passo 2.
+// ════════════════════════════════════════════════════════════════
+const API_URL = "https://script.google.com/macros/s/AKfycbwvUFBgcb6xw3AI9-pZ5NqImh4rPh7Xls4NujtbnpO7XmaK-cg5Jw2V8N5OdCo_UzNAPA/exec";
+</script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+// data.jsx — equipe, configuração de status/canal/tipo, dados de exemplo e helpers.
+// Os nomes da equipe ficam aqui no topo, fáceis de editar.
+
+const TEAM = ["Alice", "Aline", "Bruna", "Luís", "Pedro", "Henrique", "Marcela"];
+
+// ── Status do fluxo ─────────────────────────────────────────────
+// (check de IA feito ANTES do envio) Aguardando aprovação → Aprovado / Ajustes solicitados
+const STATUS = {
+  "Aguardando aprovação": {
+    label: "Aguardando aprovação",
+    color: "#B97400",
+    bg: "#FDF1DC",
+    desc: "Na fila do aprovador",
+  },
+  "Aguardando aprovação externa": {
+    label: "Aguardando aprovação externa",
+    color: "#0D9FB5",
+    bg: "#E3F6FA",
+    desc: "Aguardando retorno do externo",
+  },
+  "Aprovado": {
+    label: "Aprovado",
+    color: "#0E8A5F",
+    bg: "#E4F6EE",
+    desc: "Liberado para publicação",
+  },
+  "Ajustes solicitados": {
+    label: "Ajustes solicitados",
+    color: "#D9501E",
+    bg: "#FDEAE0",
+    desc: "Precisa de alterações",
+  },
+};
+const STATUS_ORDER = ["Aguardando aprovação", "Aguardando aprovação externa", "Aprovado", "Ajustes solicitados"];
+
+// ── Canais ──────────────────────────────────────────────────────
+const CHANNELS = {
+  "Redes sociais": { label: "Redes sociais", icon: "share" },
+  "Site": { label: "Site", icon: "globe" },
+  "Email": { label: "Email", icon: "mail" },
+  "Outro": { label: "Outro", icon: "dot" },
+};
+
+// ── Tipo de aprovação ───────────────────────────────────────────
+const APPROVAL_TYPES = ["Arte", "Texto", "Ambos"];
+// Check de IA só quando há texto a avaliar (Texto ou Ambos). Arte vai direto ao aprovador.
+function needsIACheck(item) {
+  return item.tipoAprovacao === "Texto" || item.tipoAprovacao === "Ambos";
+}
+
+// ── Dados de exemplo ────────────────────────────────────────────
+const SAMPLE = [];
+
+Object.assign(window, {
+  TEAM, STATUS, STATUS_ORDER, CHANNELS, APPROVAL_TYPES, SAMPLE_CONTENT: SAMPLE, needsIACheck,
+});
+
+</script>
+<script type="text/babel" data-presets="react">
+// ui.jsx — componentes e ícones compartilhados.
+const { useState, useRef, useEffect } = React;
+
+// ── Ícones (stroke, herdam currentColor) ────────────────────────
+function Icon({ name, size = 18, style }) {
+  const s = { width: size, height: size, display: "block", flexShrink: 0, ...style };
+  const common = {
+    viewBox: "0 0 24 24", fill: "none", stroke: "currentColor",
+    strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", style: s,
+  };
+  const P = {
+    send: <path d="M4 12l15-7-5 16-3.5-6L4 12z" />,
+    inbox: <><path d="M3 13h5l1.5 3h5L16 13h5" /><path d="M3 13l3-8h12l3 8v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5z" /></>,
+    check: <><path d="M9 12l2 2 4-4" /><circle cx="12" cy="12" r="9" /></>,
+    share: <><circle cx="6" cy="12" r="2.4" /><circle cx="17" cy="6" r="2.4" /><circle cx="17" cy="18" r="2.4" /><path d="M8.1 11l6.8-3.6M8.1 13l6.8 3.6" /></>,
+    globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18" /></>,
+    mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M4 7l8 6 8-6" /></>,
+    dot: <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />,
+    copy: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h8" /></>,
+    sparkle: <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" />,
+    chevron: <path d="M6 9l6 6 6-6" />,
+    link: <><path d="M9 14a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1" /><path d="M15 10a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1" /></>,
+    thumbUp: <path d="M7 11v9H4v-9h3zm0 0l4-8a2 2 0 0 1 2 2v4h5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.8 20H7" />,
+    edit: <><path d="M4 20h4l10-10-4-4L4 16v4z" /><path d="M13.5 6.5l4 4" /></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9h18M8 3v4M16 3v4" /></>,
+    user: <><circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /></>,
+    check2: <path d="M5 13l4 4L19 7" />,
+    x: <path d="M6 6l12 12M18 6L6 18" />,
+    filter: <path d="M4 5h16l-6 7v6l-4 2v-8L4 5z" />,
+    refresh: <path d="M20.5 12a8.5 8.5 0 1 1-2.5-6M20.5 4v5h-5" />,
+    clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+  };
+  return <svg {...common}>{P[name] || P.dot}</svg>;
+}
+
+// ── Avatar com iniciais ─────────────────────────────────────────
+const AV_COLORS = ["#3038D5", "#0D9FB5", "#FAA919", "#FC6D3A", "#000066", "#0E8A5F"];
+function Avatar({ name, size = 30 }) {
+  const idx = (TEAM.indexOf(name) + 6) % AV_COLORS.length;
+  const color = AV_COLORS[idx];
+  const initials = (name || "?").trim().slice(0, 1).toUpperCase();
+  return (
+    <span className="avatar" style={{
+      width: size, height: size, background: color, fontSize: size * 0.42,
+    }} title={name}>{initials}</span>
+  );
+}
+
+// ── Badge de status ─────────────────────────────────────────────
+function StatusBadge({ status, dot }) {
+  const s = STATUS[status] || STATUS["Aguardando aprovação"];
+  return (
+    <span className="status-badge" style={{ color: s.color, background: s.bg }}>
+      <span className="status-dot" style={{ background: s.color }} />
+      {s.label}
+    </span>
+  );
+}
+
+// ── Chip de canal/tipo ──────────────────────────────────────────
+function Chip({ icon, children, muted }) {
+  return (
+    <span className={"chip" + (muted ? " chip-muted" : "")}>
+      {icon && <Icon name={icon} size={13} />}
+      {children}
+    </span>
+  );
+}
+
+// ── Botão ───────────────────────────────────────────────────────
+function Button({ variant = "ghost", icon, children, onClick, disabled, type = "button", full, size }) {
+  return (
+    <button type={type} className={`btn btn-${variant}` + (full ? " btn-full" : "") + (size === "sm" ? " btn-sm" : "")}
+      onClick={onClick} disabled={disabled}>
+      {icon && <Icon name={icon} size={size === "sm" ? 14 : 16} />}
+      {children}
+    </button>
+  );
+}
+
+// ── Campo de formulário ─────────────────────────────────────────
+function Field({ label, hint, required, children, error }) {
+  return (
+    <label className="field">
+      <span className="field-label">
+        {label}{required && <span className="req">*</span>}
+        {hint && <span className="field-hint">{hint}</span>}
+      </span>
+      {children}
+      {error && <span className="field-error">{error}</span>}
+    </label>
+  );
+}
+
+// ── Select customizado simples (usa <select> nativo estilizado) ──
+function Select({ value, onChange, options, placeholder }) {
+  return (
+    <div className="select-wrap">
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="select">
+        {placeholder && <option value="">{placeholder}</option>}
+        {options.map((o) => {
+          const val = typeof o === "string" ? o : o.value;
+          const lab = typeof o === "string" ? o : o.label;
+          return <option key={val} value={val}>{lab}</option>;
+        })}
+      </select>
+      <span className="select-chevron"><Icon name="chevron" size={16} /></span>
+    </div>
+  );
+}
+
+// ── Toast ───────────────────────────────────────────────────────
+function Toast({ toast }) {
+  if (!toast) return null;
+  return (
+    <div className={"toast toast-" + (toast.kind || "info")} key={toast.id}>
+      <Icon name={toast.kind === "error" ? "x" : "check2"} size={16} />
+      <span>{toast.msg}</span>
+    </div>
+  );
+}
+
+Object.assign(window, { Icon, Avatar, StatusBadge, Chip, Button, Field, Select, Toast });
+
+</script>
+<script type="text/babel" data-presets="react">
+// views.jsx — telas: Enviar, Fila de aprovação, Painel do aprovador.
+const { useState: useS, useMemo } = React;
+
+function now() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function fmtDate(s) {
+  if (!s) return "—";
+  const datePart = s.split(" ")[0];
+  const [y, m, d] = datePart.split("-");
+  if (!d) return s;
+  return `${d}/${m}/${y.slice(2)}`;
+}
+
+function buildCheckText(it) {
+  const corpo = it.versaoCorrigida || it.conteudo;
+  return (
+`Faça o check deste conteúdo de marketing da dti seguindo as diretrizes do projeto.
+${it.id ? `\nID: ${it.id}` : ""}
+Autor: ${it.autor}
+Canal: ${it.canal}
+Tipo de aprovação: ${it.tipoAprovacao}
+Título: ${it.titulo}
+
+Conteúdo${it.versaoCorrigida ? " (versão corrigida)" : ""}:
+${corpo}
+${it.linkMidia ? `\nLink de mídia: ${it.linkMidia}` : ""}
+
+Responda no formato:
+VEREDITO: APROVADO ou REPROVADO
+MOTIVOS: ...
+SUGESTÕES: ...`
+  );
+}
+
+// Copia o texto de check de IA para a área de transferência.
+async function copyCheckText(it, toast) {
+  const text = buildCheckText(it);
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("Conteúdo copiado! Cole no Projeto do Claude da dti.", "success");
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); toast("Conteúdo copiado!", "success"); }
+    catch { toast("Não consegui copiar automaticamente.", "error"); }
+    ta.remove();
+  }
+}
+
+/* ════════════════════ ENVIAR CONTEÚDO ════════════════════ */
+function SubmitView({ currentUser, onCreate, toast }) {
+  const blank = {
+    autor: currentUser, canal: "Redes sociais", tipoAprovacao: "Ambos",
+    titulo: "", conteudo: "", linkMidia: "", aprovador: "", aprovadorSecundario: "",
+    dataPostagem: "", checkIA: false, precisaExterna: false, contatoExterno: "",
+  };
+  const [form, setForm] = useS(blank);
+  const [errors, setErrors] = useS({});
+  const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
+  const exigeCheck = form.tipoAprovacao === "Texto" || form.tipoAprovacao === "Ambos";
+
+  function submit(e) {
+    e.preventDefault();
+    const er = {};
+    if (!form.autor) er.autor = "Selecione o autor.";
+    if (!form.titulo.trim()) er.titulo = "Dê um título ao conteúdo.";
+    if (!form.conteudo.trim()) er.conteudo = "O conteúdo não pode ficar vazio.";
+    if (!form.aprovador) er.aprovador = "Indique quem vai aprovar.";
+    if (form.aprovadorSecundario && form.aprovadorSecundario === form.aprovador)
+      er.aprovadorSecundario = "Secundário não pode ser igual ao principal.";
+    if (form.aprovadorSecundario && form.aprovadorSecundario === form.autor)
+      er.aprovadorSecundario = "Secundário não pode ser o próprio autor.";
+    if (exigeCheck && !form.checkIA) er.checkIA = "Confirme que passou pelo check de IA.";
+    if (form.precisaExterna && !form.contatoExterno.trim()) er.contatoExterno = "Informe o contato do aprovador externo.";
+    setErrors(er);
+    if (Object.keys(er).length) return;
+    onCreate({ ...form });
+    setForm({ ...blank, autor: currentUser });
+  }
+
+  return (
+    <div className="view view-narrow">
+      <header className="view-head">
+        <h1>Enviar conteúdo</h1>
+        <p>Passe o conteúdo pelo check de IA, confirme abaixo e envie para o aprovador escolhido.</p>
+      </header>
+
+      <form className="card form" onSubmit={submit}>
+        <div className="form-grid">
+          <Field label="Autor" required error={errors.autor}>
+            <Select value={form.autor} onChange={set("autor")} options={TEAM} placeholder="Quem está enviando?" />
+          </Field>
+          <Field label="Canal" required>
+            <Select value={form.canal} onChange={set("canal")} options={Object.keys(CHANNELS)} />
+          </Field>
+        </div>
+
+        <Field label="Tipo de aprovação" required hint={form.tipoAprovacao === "Arte" ? "Arte não exige check de IA" : "O que precisa ser avaliado"}>
+          <div className="seg">
+            {APPROVAL_TYPES.map((t) => (
+              <button type="button" key={t}
+                className={"seg-btn" + (form.tipoAprovacao === t ? " is-active" : "")}
+                onClick={() => set("tipoAprovacao")(t)}>{t}</button>
+            ))}
+          </div>
+        </Field>
+
+        <Field label="Título / descrição" required error={errors.titulo}>
+          <input className="input" value={form.titulo} onChange={(e) => set("titulo")(e.target.value)}
+            placeholder="Ex.: Carrossel — 5 sinais de que sua squad precisa de discovery" />
+        </Field>
+
+        <Field label="Conteúdo" required hint="Texto completo do post, e-mail, página…" error={errors.conteudo}>
+          <textarea className="input textarea" rows={7} value={form.conteudo}
+            onChange={(e) => set("conteudo")(e.target.value)}
+            placeholder="Cole aqui o texto completo do conteúdo." />
+        </Field>
+
+        {exigeCheck && (
+          <div className={"action-block" + (errors.checkIA ? " is-warn" : "")}>
+            <div className="action-head"><Icon name="sparkle" size={16} /><strong>Check de IA</strong></div>
+            <p className="action-note">Antes de enviar, copie o conteúdo, cole no Projeto do Claude com as diretrizes da dti e ajuste se necessário.</p>
+            <div className="check-steps">
+              <Button variant="outline" icon="copy" size="sm"
+                onClick={() => copyCheckText(form, toast)}>Copiar conteúdo para check de IA</Button>
+            </div>
+            <label className="cc-check">
+              <input type="checkbox" checked={form.checkIA} onChange={(e) => set("checkIA")(e.target.checked)} />
+              <span>Passei esse conteúdo no check de IA <span className="req">*</span></span>
+            </label>
+            {errors.checkIA && <span className="field-error">{errors.checkIA}</span>}
+          </div>
+        )}
+
+        <div className="form-grid">
+          <Field label="Link de mídia" hint="Opcional — arte, vídeo, Drive…">
+            <input className="input" value={form.linkMidia} onChange={(e) => set("linkMidia")(e.target.value)}
+              placeholder="https://…" />
+          </Field>
+          <Field label="Data de postagem prevista" hint="Opcional">
+            <input className="input" type="date" value={form.dataPostagem}
+              onChange={(e) => set("dataPostagem")(e.target.value)} />
+          </Field>
+        </div>
+
+        <div className="form-grid">
+          <Field label="Aprovador principal" required hint="Quem dá o ok final" error={errors.aprovador}>
+            <Select value={form.aprovador} onChange={set("aprovador")} options={TEAM} placeholder="Escolha um aprovador" />
+          </Field>
+          <Field label="Aprovador secundário" hint="Opcional — parecer consultivo" error={errors.aprovadorSecundario}>
+            <Select value={form.aprovadorSecundario} onChange={set("aprovadorSecundario")} options={TEAM} placeholder="Nenhum" />
+          </Field>
+        </div>
+
+        <div className="action-block">
+          <label className="cc-check">
+            <input type="checkbox" checked={form.precisaExterna} onChange={(e) => set("precisaExterna")(e.target.checked)} />
+            <span>Precisa de aprovação externa (cliente, pessoa retratada etc.)</span>
+          </label>
+          {form.precisaExterna && (
+            <Field label="Contato do aprovador externo" required hint="Nome e contato — ex.: Maria (cliente XPTO), maria@cliente.com" error={errors.contatoExterno}>
+              <input className="input" value={form.contatoExterno} onChange={(e) => set("contatoExterno")(e.target.value)}
+                placeholder="Quem vai aprovar por fora?" />
+            </Field>
+          )}
+          <p className="action-note">A aprovação externa acontece <strong>depois</strong> da aprovação interna. O conteúdo só vai ao externo quando o aprovador principal aprovar.</p>
+        </div>
+
+        <div className="form-actions">
+          <Button variant="primary" icon="send" type="submit">Enviar para a fila</Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/* ════════════════════ PARECER DO SECUNDÁRIO ════════════════════ */
+function SecondaryPanel({ item, onUpdate, toast }) {
+  const [mode, setMode] = useS(null); // null | "deacordo" | "ressalvas"
+  const [comment, setComment] = useS("");
+
+  function save(parecer) {
+    if (parecer === "Com ressalvas" && !comment.trim()) return;
+    const patch = { parecerSecundario: parecer, comentarioSecundario: comment.trim() };
+    if (parecer === "Com ressalvas") { patch.status = "Ajustes solicitados"; patch.dataDecisao = now(); }
+    onUpdate(item.id, patch);
+    toast(parecer === "Com ressalvas"
+      ? "Ressalvas registradas — conteúdo voltou para ajustes."
+      : "Parecer registrado.", "success");
+    setMode(null);
+  }
+
+  return (
+    <div className="action-block">
+      <div className="action-head"><Icon name="user" size={16} /><strong>Seu parecer (consultivo)</strong></div>
+      <p className="action-note">"De acordo" é consultivo (não bloqueia). "Com ressalvas" devolve o conteúdo para o autor ajustar.</p>
+      {mode && (
+        <textarea className="input textarea" rows={2} value={comment} autoFocus
+          onChange={(e) => setComment(e.target.value)}
+          placeholder={mode === "ressalvas" ? "Descreva as ressalvas (obrigatório)." : "Comentário (opcional)."} />
+      )}
+      <div className="action-row">
+        {mode === null && (
+          <>
+            <Button variant="outline" icon="edit" onClick={() => { setMode("ressalvas"); setComment(""); }}>Com ressalvas</Button>
+            <Button variant="success" icon="check2" onClick={() => { setMode("deacordo"); setComment(""); }}>De acordo</Button>
+          </>
+        )}
+        {mode === "deacordo" && (
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setMode(null)}>Voltar</Button>
+            <Button variant="success" icon="check2" onClick={() => save("De acordo")}>Confirmar "De acordo"</Button>
+          </>
+        )}
+        {mode === "ressalvas" && (
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setMode(null)}>Voltar</Button>
+            <Button variant="primary" icon="edit" disabled={!comment.trim()} onClick={() => save("Com ressalvas")}>Registrar ressalvas</Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════ APROVAÇÃO EXTERNA ════════════════════ */
+function ExternalPanel({ item, onUpdate, toast }) {
+  const [mode, setMode] = useS(null); // null | "aprovar" | "ressalvas"
+  const [comment, setComment] = useS("");
+
+  function approve() {
+    onUpdate(item.id, {
+      status: "Aprovado", statusExterno: "Aprovado",
+      comentarioExterno: comment.trim(), dataExterna: now(), dataDecisao: now(),
+    });
+    toast("Aprovação externa registrada. Conteúdo aprovado.", "success");
+  }
+  function ressalvas() {
+    if (!comment.trim()) return;
+    onUpdate(item.id, {
+      status: "Ajustes solicitados", statusExterno: "Com ressalvas",
+      comentarioExterno: comment.trim(), dataExterna: now(),
+    });
+    toast("Ressalvas externas registradas — conteúdo voltou para ajustes.", "info");
+  }
+
+  return (
+    <div className="action-block decision">
+      <div className="action-head"><Icon name="globe" size={16} /><strong>Aprovação externa</strong></div>
+      <p className="action-note">Contato externo: <strong>{item.contatoExterno || "—"}</strong>. Registre aqui o retorno depois de falar com a pessoa por fora.</p>
+      {mode && (
+        <textarea className="input textarea" rows={2} value={comment} autoFocus
+          onChange={(e) => setComment(e.target.value)}
+          placeholder={mode === "ressalvas" ? "Descreva as ressalvas do externo (obrigatório)." : "Comentário (opcional)."} />
+      )}
+      <div className="action-row">
+        {mode === null && (
+          <>
+            <Button variant="danger-soft" icon="edit" onClick={() => { setMode("ressalvas"); setComment(""); }}>Com ressalvas</Button>
+            <Button variant="success" icon="check2" onClick={() => { setMode("aprovar"); setComment(""); }}>Aprovado pelo externo</Button>
+          </>
+        )}
+        {mode === "aprovar" && (
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setMode(null)}>Voltar</Button>
+            <Button variant="success" icon="check2" onClick={approve}>Confirmar aprovação externa</Button>
+          </>
+        )}
+        {mode === "ressalvas" && (
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setMode(null)}>Voltar</Button>
+            <Button variant="danger" icon="edit" disabled={!comment.trim()} onClick={ressalvas}>Registrar ressalvas</Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════ PAINEL DE DECISÃO ════════════════════ */
+function DecisionPanel({ item, onUpdate, toast }) {
+  const [mode, setMode] = useS(null); // null | "ajustes" | "aprovar"
+  const [comment, setComment] = useS("");
+
+  function approve() {
+    if (item.precisaExterna && item.statusExterno !== "Aprovado") {
+      onUpdate(item.id, { status: "Aguardando aprovação externa", comentarios: comment.trim(), dataDecisao: now() });
+      toast("Aprovado internamente — enviado para aprovação externa.", "success");
+    } else {
+      onUpdate(item.id, { status: "Aprovado", comentarios: comment.trim(), dataDecisao: now() });
+      toast("Conteúdo aprovado.", "success");
+    }
+  }
+  function requestChanges() {
+    if (!comment.trim()) return;
+    onUpdate(item.id, { status: "Ajustes solicitados", comentarios: comment.trim(), dataDecisao: now() });
+    toast("Ajustes solicitados ao autor.", "info");
+  }
+
+  return (
+    <div className="action-block decision">
+      <div className="action-head"><Icon name="thumbUp" size={16} /><strong>Sua decisão</strong></div>
+      {mode === "ajustes" && (
+        <textarea className="input textarea" rows={3} value={comment} autoFocus
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Descreva os ajustes necessários (obrigatório)." />
+      )}
+      {mode === "aprovar" && (
+        <textarea className="input textarea" rows={2} value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Comentário (opcional)." />
+      )}
+      <div className="action-row">
+        {mode === null && (
+          <>
+            <Button variant="danger-soft" icon="edit" onClick={() => { setMode("ajustes"); setComment(""); }}>Solicitar ajustes</Button>
+            <Button variant="success" icon="check2" onClick={() => { setMode("aprovar"); setComment(""); }}>Aprovar</Button>
+          </>
+        )}
+        {mode === "ajustes" && (
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setMode(null)}>Voltar</Button>
+            <Button variant="danger" icon="edit" disabled={!comment.trim()} onClick={requestChanges}>Confirmar ajustes</Button>
+          </>
+        )}
+        {mode === "aprovar" && (
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setMode(null)}>Voltar</Button>
+            <Button variant="success" icon="check2" onClick={approve}>Confirmar aprovação</Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════ COMENTÁRIOS NO TEXTO ════════════════════ */
+// Mapeia (nó, offset) do DOM para um índice de caractere no texto completo.
+function offsetOf(root, node, off) {
+  let total = 0, done = false;
+  (function walk(n) {
+    if (done) return;
+    if (n === node) {
+      if (n.nodeType === 3) total += off;
+      else for (let i = 0; i < off && i < n.childNodes.length; i++) total += (n.childNodes[i].textContent || "").length;
+      done = true; return;
+    }
+    if (n.nodeType === 3) { total += n.nodeValue.length; return; }
+    for (const c of n.childNodes) { walk(c); if (done) return; }
+  })(root);
+  return total;
+}
+
+function CommentableContent({ item, currentUser, onUpdate }) {
+  const text = item.versaoCorrigida || item.conteudo;
+  const ref = React.useRef(null);
+  const [sel, setSel] = useS(null);
+  const [draft, setDraft] = useS("");
+  const [activeId, setActiveId] = useS(null);
+
+  // Normaliza: se a nota não tiver offsets, calcula pelo trecho citado.
+  const notes = (item.notas || []).map((n) => {
+    if (typeof n.start === "number" && n.end > n.start) return n;
+    const idx = text.indexOf(n.quote || "");
+    return idx >= 0 ? { ...n, start: idx, end: idx + n.quote.length } : { ...n, start: 0, end: 0 };
+  });
+
+  function onMouseUp() {
+    const s = window.getSelection();
+    if (!s || s.isCollapsed || !ref.current) { return; }
+    const range = s.getRangeAt(0);
+    if (!ref.current.contains(range.commonAncestorContainer)) return;
+    let a = offsetOf(ref.current, range.startContainer, range.startOffset);
+    let b = offsetOf(ref.current, range.endContainer, range.endOffset);
+    if (a > b) { const t = a; a = b; b = t; }
+    if (b - a < 1) return;
+    const cR = ref.current.getBoundingClientRect();
+    const rR = range.getBoundingClientRect();
+    setSel({ start: a, end: b, quote: text.slice(a, b),
+      top: rR.bottom - cR.top + 8, left: Math.max(0, Math.min(rR.left - cR.left, cR.width - 290)) });
+    setDraft("");
+  }
+
+  function clearSel() { setSel(null); const s = window.getSelection(); if (s) s.removeAllRanges(); }
+  function add() {
+    if (!draft.trim() || !sel) return;
+    const note = { id: "n" + Date.now(), autor: currentUser, start: sel.start, end: sel.end,
+      quote: sel.quote, texto: draft.trim(), data: now() };
+    onUpdate(item.id, { notas: [...(item.notas || []), note] });
+    clearSel(); setDraft("");
+  }
+  function remove(id) { onUpdate(item.id, { notas: (item.notas || []).filter((n) => n.id !== id) }); }
+
+  // Quebra o texto em segmentos, marcando os cobertos por comentários.
+  const bset = new Set([0, text.length]);
+  notes.forEach((n) => { if (n.end > n.start) { bset.add(Math.max(0, n.start)); bset.add(Math.min(text.length, n.end)); } });
+  const pts = [...bset].sort((x, y) => x - y);
+  const segs = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1]; if (b <= a) continue;
+    segs.push({ a, b, t: text.slice(a, b), cov: notes.filter((n) => n.start <= a && n.end >= b) });
+  }
+  const trim = (q, n) => (q.length > n ? q.slice(0, n) + "…" : q);
+
+  return (
+    <div className="content-block">
+      <span className="block-label" style={{ whiteSpace: "normal" }}>
+        {item.versaoCorrigida ? "Versão corrigida" : "Conteúdo"} <span className="cc-hint">— selecione um trecho para comentar</span>
+      </span>
+      <div className="content-text cc-text" ref={ref} onMouseUp={onMouseUp}>
+        {segs.map((sg, i) => sg.cov.length ? (
+          <mark key={i} className={"cc-hl" + (sg.cov.some((n) => n.id === activeId) ? " is-active" : "")}
+            onClick={() => setActiveId(sg.cov[sg.cov.length - 1].id)}>{sg.t}</mark>
+        ) : <React.Fragment key={i}>{sg.t}</React.Fragment>)}
+      </div>
+
+      {sel && (
+        <div className="cc-pop" style={{ top: sel.top, left: sel.left }}>
+          <div className="cc-pop-quote">“{trim(sel.quote, 90)}”</div>
+          <textarea className="input textarea" rows={2} autoFocus value={draft}
+            onChange={(e) => setDraft(e.target.value)} placeholder="Comente este trecho…" />
+          <div className="cc-pop-actions">
+            <Button variant="ghost" size="sm" onClick={clearSel}>Cancelar</Button>
+            <Button variant="primary" size="sm" icon="check2" disabled={!draft.trim()} onClick={add}>Comentar</Button>
+          </div>
+        </div>
+      )}
+
+      {item.linkMidia && (
+        <a className="media-link" href={item.linkMidia} target="_blank" rel="noreferrer">
+          <Icon name="link" size={14} />{item.linkMidia}
+        </a>
+      )}
+
+      {notes.length > 0 && (
+        <div className="cc-list">
+          <span className="block-label">{notes.length} comentário{notes.length > 1 ? "s" : ""} no texto</span>
+          {notes.map((n, i) => (
+            <div key={n.id} className={"cc-note" + (activeId === n.id ? " is-active" : "")}
+              onMouseEnter={() => setActiveId(n.id)} onMouseLeave={() => setActiveId(null)}>
+              <span className="cc-note-num">{i + 1}</span>
+              <div className="cc-note-body">
+                <span className="cc-note-quote">“{trim(n.quote, 100)}”</span>
+                <p>{n.texto}</p>
+                <span className="cc-note-meta"><Avatar name={n.autor} size={18} />{n.autor} · {fmtDate(n.data)}</span>
+              </div>
+              {(n.autor === currentUser || item.aprovador === currentUser || item.aprovadorSecundario === currentUser) && (
+                <button className="cc-note-x" onClick={() => remove(n.id)} title="Remover comentário"><Icon name="x" size={14} /></button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════ DETALHE DO ITEM ════════════════════ */
+function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
+  const isApprover = item.aprovador === currentUser;
+  const isSecondary = item.aprovadorSecundario === currentUser;
+  const isAuthor = item.autor === currentUser;
+  const [editing, setEditing] = useS(false);
+  const [confirmDel, setConfirmDel] = useS(false);
+  return (
+    <div className="detail">
+      <div className="detail-grid">
+        <Meta label="Autor"><span className="meta-person"><Avatar name={item.autor} size={22} />{item.autor}</span></Meta>
+        <Meta label="Aprovador principal"><span className="meta-person"><Avatar name={item.aprovador} size={22} />{item.aprovador}</span></Meta>
+        <Meta label="Aprovador secundário">
+          {item.aprovadorSecundario
+            ? <span className="meta-person"><Avatar name={item.aprovadorSecundario} size={22} />{item.aprovadorSecundario}</span>
+            : "—"}
+        </Meta>
+        <Meta label="Tipo / postagem">
+          <Chip muted>{item.tipoAprovacao}</Chip>
+          {item.dataPostagem ? " · " + fmtDate(item.dataPostagem) : ""}
+        </Meta>
+      </div>
+
+      {item.versaoCorrigida && (
+        <div className="content-block">
+          <span className="block-label">Versão original</span>
+          <div className="content-text" style={{ opacity: 0.65 }}>{item.conteudo}</div>
+        </div>
+      )}
+
+      <CommentableContent item={item} currentUser={currentUser} onUpdate={onUpdate} />
+
+      {isAuthor && !editing && !confirmDel && (
+        <div className="action-row" style={{ justifyContent: "flex-start" }}>
+          {item.status !== "Aprovado" && (
+            <Button variant="outline" size="sm" icon="edit" onClick={() => setEditing(true)}>Editar conteúdo</Button>
+          )}
+          <Button variant="danger-soft" size="sm" icon="x" onClick={() => setConfirmDel(true)}>Excluir</Button>
+        </div>
+      )}
+      {confirmDel && (
+        <div className="action-block is-warn">
+          <div className="action-head"><Icon name="x" size={16} /><strong>Excluir este conteúdo?</strong></div>
+          <p className="action-note">Esta ação é permanente e remove o registro da planilha. Não pode ser desfeita.</p>
+          <div className="action-row">
+            <Button variant="ghost" size="sm" onClick={() => setConfirmDel(false)}>Cancelar</Button>
+            <Button variant="danger" size="sm" icon="x" onClick={() => { setConfirmDel(false); onDelete(item.id); }}>Excluir definitivamente</Button>
+          </div>
+        </div>
+      )}
+      {editing && <EditPanel item={item} onUpdate={onUpdate} toast={toast} close={() => setEditing(false)} />}
+
+      {needsIACheck(item) && item.checkIA && (
+        <div className="info-line ok"><Icon name="sparkle" size={15} /> Check de IA confirmado pelo autor antes do envio.</div>
+      )}
+
+      {item.parecerSecundario && (
+        <div className={"comment-block" + (item.parecerSecundario === "Com ressalvas" ? " is-warn" : "")}>
+          <span className="block-label">
+            <Avatar name={item.aprovadorSecundario} size={18} /> Parecer de {item.aprovadorSecundario} (secundário): <strong>{item.parecerSecundario}</strong>
+          </span>
+          {item.comentarioSecundario && <p>{item.comentarioSecundario}</p>}
+        </div>
+      )}
+
+      {item.comentarios && (
+        <div className={"comment-block" + (item.status === "Ajustes solicitados" ? " is-warn" : "")}>
+          <span className="block-label">
+            <Avatar name={item.aprovador} size={18} /> Comentário de {item.aprovador}
+            {item.dataDecisao && <span className="comment-date">· {fmtDate(item.dataDecisao)}</span>}
+          </span>
+          <p>{item.comentarios}</p>
+        </div>
+      )}
+
+      {item.precisaExterna && (
+        <div className={"comment-block" + (item.statusExterno === "Com ressalvas" ? " is-warn" : "")}>
+          <span className="block-label">
+            <Icon name="globe" size={14} /> Aprovação externa — {item.contatoExterno || "contato não informado"}
+            {item.statusExterno ? ": " : ""}<strong>{item.statusExterno || "(após aprovação interna)"}</strong>
+            {item.dataExterna && <span className="comment-date">· {fmtDate(item.dataExterna)}</span>}
+          </span>
+          {item.comentarioExterno && <p>{item.comentarioExterno}</p>}
+        </div>
+      )}
+
+      {/* Ações contextuais */}
+      {item.status === "Aguardando aprovação" && isSecondary && !item.parecerSecundario && (
+        <SecondaryPanel item={item} onUpdate={onUpdate} onDelete={onDelete} toast={toast} />
+      )}
+      {item.status === "Aguardando aprovação" && isApprover && (
+        <DecisionPanel item={item} onUpdate={onUpdate} onDelete={onDelete} toast={toast} />
+      )}
+      {item.status === "Aguardando aprovação" && !isApprover && !isSecondary && (
+        <div className="info-line"><Icon name="clock" size={15} /> Aguardando decisão de {item.aprovador}.</div>
+      )}
+      {item.status === "Aguardando aprovação" && isSecondary && item.parecerSecundario && !isApprover && (
+        <div className="info-line ok"><Icon name="check2" size={15} /> Seu parecer foi registrado. Decisão final com {item.aprovador}.</div>
+      )}
+      {item.status === "Aguardando aprovação externa" && (isAuthor || isApprover) && (
+        <ExternalPanel item={item} onUpdate={onUpdate} toast={toast} />
+      )}
+      {item.status === "Aguardando aprovação externa" && !isAuthor && !isApprover && (
+        <div className="info-line"><Icon name="globe" size={15} /> Aprovado internamente. Aguardando retorno do externo ({item.contatoExterno || "—"}).</div>
+      )}
+      {item.status === "Ajustes solicitados" && isAuthor && (
+        <ResendPanel item={item} onUpdate={onUpdate} onDelete={onDelete} toast={toast} />
+      )}
+      {item.status === "Ajustes solicitados" && !isAuthor && (
+        <div className="info-line"><Icon name="edit" size={15} /> Aguardando {item.autor} enviar a versão corrigida.</div>
+      )}
+      {item.status === "Aprovado" && (
+        <div className="info-line ok"><Icon name="check2" size={15} /> Aprovado em {fmtDate(item.dataDecisao)} — liberado para publicação.</div>
+      )}
+    </div>
+  );
+}
+function Meta({ label, children }) {
+  return <div className="meta"><span className="meta-label">{label}</span><span className="meta-val">{children}</span></div>;
+}
+
+/* ════════════════════ ITEM DA FILA (accordion) ════════════════════ */
+function QueueItem({ item, currentUser, onUpdate, onDelete, toast, open, onToggle }) {
+  const ch = CHANNELS[item.canal] || CHANNELS["Outro"];
+  return (
+    <div className={"qitem" + (open ? " is-open" : "")}>
+      <button className="qitem-head" onClick={onToggle}>
+        <span className="qitem-chevron"><Icon name="chevron" size={18} /></span>
+        <span className="qitem-main">
+          <span className="qitem-top">
+            <span className="qitem-id">{item.id}</span>
+            <Chip icon={ch.icon}>{item.canal}</Chip>
+          </span>
+          <span className="qitem-title">{item.titulo}</span>
+        </span>
+        <span className="qitem-side">
+          <StatusBadge status={item.status} />
+          <span className="qitem-approver" title={"Aprovador: " + item.aprovador}><Avatar name={item.aprovador} size={26} /></span>
+        </span>
+      </button>
+      {open && <ItemDetail item={item} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast} />}
+    </div>
+  );
+}
+
+/* ════════════════════ FILA DE APROVAÇÃO ════════════════════ */
+function QueueView({ items, currentUser, onUpdate, onDelete, toast }) {
+  const [fStatus, setFStatus] = useS("");
+  const [fCanal, setFCanal] = useS("");
+  const [fAprov, setFAprov] = useS("");
+  const [q, setQ] = useS("");
+  const [openId, setOpenId] = useS(null);
+
+  const filtered = useMemo(() => items.filter((it) =>
+    (!fStatus || it.status === fStatus) &&
+    (!fCanal || it.canal === fCanal) &&
+    (!fAprov || it.aprovador === fAprov) &&
+    (!q || (it.titulo + " " + it.conteudo + " " + it.id + " " + it.autor).toLowerCase().includes(q.toLowerCase()))
+  ), [items, fStatus, fCanal, fAprov, q]);
+
+  const counts = useMemo(() => {
+    const c = {}; STATUS_ORDER.forEach((s) => c[s] = 0);
+    items.forEach((it) => c[it.status]++);
+    return c;
+  }, [items]);
+
+  return (
+    <div className="view">
+      <header className="view-head">
+        <h1>Fila de aprovação</h1>
+        <p>Todos os conteúdos em circulação. Clique em um item para ver tudo: conteúdo, pareceres e comentários.</p>
+      </header>
+
+      <div className="stat-row">
+        {STATUS_ORDER.map((s) => (
+          <button key={s} className={"stat" + (fStatus === s ? " is-active" : "")}
+            onClick={() => setFStatus(fStatus === s ? "" : s)}>
+            <span className="stat-num" style={{ color: STATUS[s].color }}>{counts[s]}</span>
+            <span className="stat-lab">{STATUS[s].label}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="filters">
+        <div className="search">
+          <Icon name="filter" size={15} />
+          <input className="search-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título, autor, conteúdo…" />
+        </div>
+        <Select value={fStatus} onChange={setFStatus} options={STATUS_ORDER} placeholder="Todos os status" />
+        <Select value={fCanal} onChange={setFCanal} options={Object.keys(CHANNELS)} placeholder="Todos os canais" />
+        <Select value={fAprov} onChange={setFAprov} options={TEAM} placeholder="Todos os aprovadores" />
+      </div>
+
+      <div className="qlist">
+        {filtered.length === 0 && <div className="empty"><Icon name="inbox" size={26} /><p>Nenhum conteúdo com esses filtros.</p></div>}
+        {filtered.map((it) => (
+          <QueueItem key={it.id} item={it} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast}
+            open={openId === it.id} onToggle={() => setOpenId(openId === it.id ? null : it.id)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════ PAINEL DO APROVADOR ════════════════════ */
+function ApproverView({ items, currentUser, onUpdate, onDelete, toast }) {
+  const mine = items.filter((it) => it.aprovador === currentUser && it.status === "Aguardando aprovação");
+  const secondaryPending = items.filter((it) => it.aprovadorSecundario === currentUser && it.status === "Aguardando aprovação" && !it.parecerSecundario);
+  const recent = items.filter((it) => it.aprovador === currentUser && (it.status === "Aprovado" || it.status === "Ajustes solicitados"));
+  const [openId, setOpenId] = useS(mine[0] ? mine[0].id : (secondaryPending[0] ? secondaryPending[0].id : null));
+
+  return (
+    <div className="view">
+      <header className="view-head">
+        <h1>Painel do aprovador</h1>
+        <p>Conteúdos aguardando a sua decisão, <strong>{currentUser}</strong>.</p>
+      </header>
+
+      <div className="section-label">
+        Pendentes comigo (principal)
+        <span className="count-pill">{mine.length}</span>
+      </div>
+
+      {mine.length === 0 ? (
+        <div className="empty big"><Icon name="check" size={30} /><p>Tudo em dia! Nenhum conteúdo aguardando sua decisão.</p></div>
+      ) : (
+        <div className="qlist">
+          {mine.map((it) => (
+            <QueueItem key={it.id} item={it} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast}
+              open={openId === it.id} onToggle={() => setOpenId(openId === it.id ? null : it.id)} />
+          ))}
+        </div>
+      )}
+
+      {secondaryPending.length > 0 && (
+        <>
+          <div className="section-label muted">Para meu parecer (secundário) <span className="count-pill">{secondaryPending.length}</span></div>
+          <div className="qlist">
+            {secondaryPending.map((it) => (
+              <QueueItem key={it.id} item={it} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast}
+                open={openId === it.id} onToggle={() => setOpenId(openId === it.id ? null : it.id)} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {recent.length > 0 && (
+        <>
+          <div className="section-label muted">Decididos recentemente por mim</div>
+          <div className="qlist">
+            {recent.map((it) => (
+              <QueueItem key={it.id} item={it} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast}
+                open={openId === it.id} onToggle={() => setOpenId(openId === it.id ? null : it.id)} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════ EDITAR CONTEÚDO (autor) ════════════════════ */
+function EditPanel({ item, onUpdate, toast, close }) {
+  const editingCorrected = !!item.versaoCorrigida;
+  const [f, setF] = useS({
+    titulo: item.titulo,
+    conteudo: editingCorrected ? item.versaoCorrigida : item.conteudo,
+    linkMidia: item.linkMidia || "",
+    dataPostagem: item.dataPostagem || "",
+  });
+  const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
+  function save() {
+    if (!f.titulo.trim() || !f.conteudo.trim()) { toast("Título e conteúdo não podem ficar vazios.", "error"); return; }
+    const patch = { titulo: f.titulo.trim(), linkMidia: f.linkMidia.trim(), dataPostagem: f.dataPostagem };
+    if (editingCorrected) patch.versaoCorrigida = f.conteudo; else patch.conteudo = f.conteudo;
+    onUpdate(item.id, patch);
+    toast("Conteúdo atualizado.", "success");
+    close();
+  }
+  return (
+    <div className="action-block">
+      <div className="action-head"><Icon name="edit" size={16} /><strong>Editar {editingCorrected ? "versão corrigida" : "conteúdo"}</strong></div>
+      <Field label="Título / descrição" required>
+        <input className="input" value={f.titulo} onChange={set("titulo")} />
+      </Field>
+      <Field label={editingCorrected ? "Versão corrigida" : "Conteúdo"} required>
+        <textarea className="input textarea" rows={7} value={f.conteudo} onChange={set("conteudo")} />
+      </Field>
+      <div className="form-grid">
+        <Field label="Link de mídia" hint="Opcional">
+          <input className="input" value={f.linkMidia} onChange={set("linkMidia")} placeholder="https://…" />
+        </Field>
+        <Field label="Data de postagem prevista" hint="Opcional">
+          <input className="input" type="date" value={f.dataPostagem} onChange={set("dataPostagem")} />
+        </Field>
+      </div>
+      <div className="action-row">
+        <Button variant="ghost" size="sm" onClick={close}>Cancelar</Button>
+        <Button variant="primary" icon="check2" onClick={save}>Salvar alterações</Button>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════ VERSÃO CORRIGIDA (reenvio) ════════════════════ */
+function ResendPanel({ item, onUpdate, toast }) {
+  const [text, setText] = useS(item.versaoCorrigida || item.conteudo);
+  const [checkIA, setCheckIA] = useS(false);
+  const exigeCheck = needsIACheck(item);
+  function resend() {
+    if (!text.trim()) return;
+    if (exigeCheck && !checkIA) { toast("Confirme que passou a versão corrigida pelo check de IA.", "error"); return; }
+    onUpdate(item.id, {
+      versaoCorrigida: text,
+      status: "Aguardando aprovação",
+      checkIA: exigeCheck ? true : item.checkIA,
+      comentarios: "", dataDecisao: "",
+      parecerSecundario: "", comentarioSecundario: "",
+      statusExterno: "", comentarioExterno: "", dataExterna: "",
+    });
+    toast("Versão corrigida reenviada para a fila.", "success");
+  }
+  return (
+    <div className="action-block">
+      <div className="action-head"><Icon name="edit" size={16} /><strong>Versão corrigida</strong></div>
+      <p className="action-note">Edite abaixo a versão com os ajustes pedidos e reenvie. A versão original continua visível para comparação.</p>
+      <textarea className="input textarea" rows={7} value={text} onChange={(e) => setText(e.target.value)}
+        placeholder="Cole/edite aqui a versão corrigida do conteúdo." />
+      {exigeCheck && (
+        <>
+          <div className="check-steps">
+            <Button variant="outline" icon="copy" size="sm"
+              onClick={() => copyCheckText({ ...item, versaoCorrigida: text }, toast)}>Copiar para check de IA</Button>
+          </div>
+          <label className="cc-check">
+            <input type="checkbox" checked={checkIA} onChange={(e) => setCheckIA(e.target.checked)} />
+            <span>Passei a versão corrigida no check de IA <span className="req">*</span></span>
+          </label>
+        </>
+      )}
+      <div className="action-row">
+        <Button variant="primary" icon="send" disabled={!text.trim() || (exigeCheck && !checkIA)} onClick={resend}>Reenviar versão corrigida</Button>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════ MEUS ENVIOS ════════════════════ */
+function MyView({ items, currentUser, onUpdate, onDelete, toast }) {
+  const mine = items.filter((it) => it.autor === currentUser);
+  const needsAction = mine.filter((it) => it.status === "Ajustes solicitados");
+  const others = mine.filter((it) => it.status !== "Ajustes solicitados");
+  const [openId, setOpenId] = useS(needsAction[0] ? needsAction[0].id : null);
+  return (
+    <div className="view">
+      <header className="view-head">
+        <h1>Meus envios</h1>
+        <p>Tudo o que você já enviou, <strong>{currentUser}</strong>. Abra um item para editar ou enviar a versão corrigida.</p>
+      </header>
+
+      {mine.length === 0 && (
+        <div className="empty big"><Icon name="send" size={28} /><p>Você ainda não enviou nenhum conteúdo.</p></div>
+      )}
+
+      {needsAction.length > 0 && (
+        <>
+          <div className="section-label">Com ajustes solicitados <span className="count-pill">{needsAction.length}</span></div>
+          <div className="qlist">
+            {needsAction.map((it) => (
+              <QueueItem key={it.id} item={it} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast}
+                open={openId === it.id} onToggle={() => setOpenId(openId === it.id ? null : it.id)} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {others.length > 0 && (
+        <>
+          <div className={"section-label" + (needsAction.length ? " muted" : "")}>Todos os envios</div>
+          <div className="qlist">
+            {others.map((it) => (
+              <QueueItem key={it.id} item={it} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast}
+                open={openId === it.id} onToggle={() => setOpenId(openId === it.id ? null : it.id)} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+Object.assign(window, { SubmitView, QueueView, ApproverView, MyView, EditPanel, ResendPanel });
+
+</script>
+<script type="text/babel" data-presets="react">
+// app.jsx — raiz: navegação, usuário, estado + sincronização com Google Sheets.
+const { useState: useState_, useEffect: useEffect_ } = React;
+
+const NAV = [
+  { id: "enviar", label: "Enviar conteúdo", icon: "send" },
+  { id: "meus", label: "Meus envios", icon: "user" },
+  { id: "fila", label: "Fila de aprovação", icon: "inbox" },
+  { id: "aprovador", label: "Painel do aprovador", icon: "check" },
+];
+
+// ── API (Google Apps Script) ────────────────────────────────────
+async function apiList() {
+  const r = await fetch(API_URL + "?t=" + Date.now());
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || "Erro no servidor");
+  return j.items;
+}
+async function apiPost(body) {
+  const r = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || "Erro no servidor");
+  return j;
+}
+
+function App() {
+  const [route, setRoute] = useState_("fila");
+  const [user, setUser] = useState_(() => {
+    try { const u = localStorage.getItem("dti_aprovacoes_user"); return TEAM.includes(u) ? u : TEAM[0]; }
+    catch { return TEAM[0]; }
+  });
+  const [items, setItems] = useState_(null); // null = carregando
+  const [loadError, setLoadError] = useState_(null);
+  const [toast, setToast] = useState_(null);
+  const [userOpen, setUserOpen] = useState_(false);
+  const [saving, setSaving] = useState_(false);
+
+  useEffect_(() => { try { localStorage.setItem("dti_aprovacoes_user", user); } catch {} }, [user]);
+
+  async function reload(silent) {
+    if (!silent) { setItems(null); setLoadError(null); }
+    try { const list = await apiList(); setItems(list); setLoadError(null); }
+    catch (e) { if (!silent) setLoadError(String(e.message || e)); }
+  }
+
+  useEffect_(() => {
+    if (!/^https:\/\//.test(API_URL)) {
+      setLoadError("Configure a URL do Apps Script na constante API_URL, no topo deste arquivo HTML.");
+      return;
+    }
+    reload();
+    const t = setInterval(() => reload(true), 60000); // atualiza a cada 60s
+    return () => clearInterval(t);
+  }, []);
+
+  function showToast(msg, kind = "info") {
+    const id = Date.now();
+    setToast({ id, msg, kind });
+    setTimeout(() => setToast((cur) => (cur && cur.id === id ? null : cur)), 3600);
+  }
+
+  async function createItem(data) {
+    if (saving) return;
+    const item = {
+      ...data,
+      status: "Aguardando aprovação",
+      comentarios: "", dataDecisao: "", notas: [], versaoCorrigida: "",
+      parecerSecundario: "", comentarioSecundario: "",
+      statusExterno: "", comentarioExterno: "", dataExterna: "",
+    };
+    setSaving(true);
+    showToast("Enviando conteúdo…", "info");
+    try {
+      const res = await apiPost({ action: "create", item });
+      setItems((arr) => [res.item, ...(arr || [])]);
+      showToast(`Conteúdo ${res.item.id} enviado para a fila.`, "success");
+      setRoute("fila");
+    } catch (e) {
+      showToast("Erro ao enviar: " + (e.message || e), "error");
+    }
+    setSaving(false);
+  }
+
+  function updateItem(id, patch) {
+    // Atualização otimista: muda na tela e salva na planilha em paralelo.
+    setItems((arr) => arr.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+    apiPost({ action: "update", id, patch }).catch((e) => {
+      showToast("Erro ao salvar: " + (e.message || e), "error");
+      reload(true);
+    });
+  }
+
+  function deleteItem(id) {
+    setItems((arr) => (arr || []).filter((it) => it.id !== id));
+    showToast("Conteúdo " + id + " excluído.", "info");
+    apiPost({ action: "delete", id }).catch((e) => {
+      showToast("Erro ao excluir: " + (e.message || e), "error");
+      reload(true);
+    });
+  }
+
+  const pendingForMe = (items || []).filter((it) => it.aprovador === user && it.status === "Aguardando aprovação").length;
+  const adjustForMe = (items || []).filter((it) => it.autor === user && it.status === "Ajustes solicitados").length;
+
+  const Brand = (
+    <div className="brand">
+      <span className="brand-mark">.</span>
+      <span className="brand-text"><b>dti</b> aprovações</span>
+    </div>
+  );
+
+  const UserPicker = (
+    <div className="userpick">
+      <button className="userpick-btn" onClick={() => setUserOpen((o) => !o)}>
+        <Avatar name={user} size={30} />
+        <span className="userpick-name">{user}</span>
+        <Icon name="chevron" size={15} />
+      </button>
+      {userOpen && (
+        <>
+          <div className="userpick-scrim" onClick={() => setUserOpen(false)} />
+          <div className="userpick-menu">
+            <span className="userpick-head">Você é…</span>
+            {TEAM.map((n) => (
+              <button key={n} className={"userpick-opt" + (n === user ? " is-active" : "")}
+                onClick={() => { setUser(n); setUserOpen(false); }}>
+                <Avatar name={n} size={26} />{n}
+                {n === user && <Icon name="check2" size={15} style={{ marginLeft: "auto" }} />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  const NavItems = NAV.map((n) => (
+    <button key={n.id} className={"navitem" + (route === n.id ? " is-active" : "")}
+      onClick={() => setRoute(n.id)}>
+      <Icon name={n.icon} size={19} />
+      <span>{n.label}</span>
+      {n.id === "aprovador" && pendingForMe > 0 && <span className="nav-badge">{pendingForMe}</span>}
+      {n.id === "meus" && adjustForMe > 0 && <span className="nav-badge">{adjustForMe}</span>}
+    </button>
+  ));
+
+  let content;
+  if (loadError) {
+    content = (
+      <div className="view">
+        <div className="empty big">
+          <Icon name="x" size={28} />
+          <p><strong>Não consegui conectar à planilha.</strong></p>
+          <p>{loadError}</p>
+          <Button variant="primary" icon="refresh" onClick={() => reload()}>Tentar de novo</Button>
+        </div>
+      </div>
+    );
+  } else if (items === null) {
+    content = (
+      <div className="view">
+        <div className="empty big"><Icon name="clock" size={28} /><p>Carregando conteúdos…</p></div>
+      </div>
+    );
+  } else if (route === "enviar") {
+    content = <SubmitView currentUser={user} onCreate={createItem} toast={showToast} />;
+  } else if (route === "meus") {
+    content = <MyView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} />;
+  } else if (route === "aprovador") {
+    content = <ApproverView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} />;
+  } else {
+    content = <QueueView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} />;
+  }
+
+  return (
+    <div className="app nav-sidebar">
+      <aside className="sidebar">
+        {Brand}
+        <nav className="nav">{NavItems}</nav>
+        <button className="navitem" onClick={() => { reload(true); showToast("Lista atualizada.", "info"); }}>
+          <Icon name="refresh" size={18} /><span>Atualizar</span>
+        </button>
+        <div className="sidebar-foot">{UserPicker}</div>
+      </aside>
+
+      <main className="main">{content}</main>
+
+      <Toast toast={toast} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+
+</script>
+</body>
+</html>
