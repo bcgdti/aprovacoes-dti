@@ -143,6 +143,11 @@ function doPost(e) {
       return json({ ok: false, error: "ID não encontrado: " + body.id });
     }
 
+    if (body.action === "notify") {
+      if (body.acao && body.item) notifyTeams(body.acao, body.item);
+      return json({ ok: true });
+    }
+
     return json({ ok: false, error: "Ação desconhecida." });
   } catch (err) {
     return json({ ok: false, error: String(err) });

@@ -335,14 +335,17 @@ a{ color:var(--accent); }
 </style>
 <script>
 // ════════════════════════════════════════════════════════════════
-// CONFIGURAÇÃO — cole aqui a URL do seu Google Apps Script
-// (termina com /exec). Veja INSTRUCOES.md, passo 2.
+// CONFIGURAÇÃO — Supabase (banco de dados)
+// A chave publishable é pública por design; a segurança real vem
+// das políticas RLS do Supabase + Cloudflare Access no domínio.
 // ════════════════════════════════════════════════════════════════
-const API_URL = "https://script.google.com/macros/s/AKfycbwvUFBgcb6xw3AI9-pZ5NqImh4rPh7Xls4NujtbnpO7XmaK-cg5Jw2V8N5OdCo_UzNAPA/exec";
+const SUPABASE_URL = "https://wpjhgsyrqywppcttxtgt.supabase.co";
+const SUPABASE_KEY = "sb_publishable_bvaIqxgvsmVwMS-mSfHxvQ_5OCS5Yz1";
 </script>
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -1388,8 +1391,12 @@ Object.assign(window, { SubmitView, QueueView, ApproverView, MyView, EditPanel, 
 
 </script>
 <script type="text/babel" data-presets="react">
-// app.jsx — raiz: navegação, usuário, estado + sincronização com Google Sheets.
+// app.jsx — raiz: navegação, usuário, estado + sincronização com Supabase.
 const { useState: useState_, useEffect: useEffect_ } = React;
+const { createClient } = supabase;
+
+// Cliente Supabase — reutilizado em todo o app.
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const NAV = [
   { id: "enviar", label: "Enviar conteúdo", icon: "send" },
@@ -1398,24 +1405,115 @@ const NAV = [
   { id: "aprovador", label: "Painel do aprovador", icon: "check" },
 ];
 
-// ── API (Google Apps Script) ────────────────────────────────────
-async function apiList() {
-  const r = await fetch(API_URL + "?t=" + Date.now());
-  if (!r.ok) throw new Error("HTTP " + r.status);
-  const j = await r.json();
-  if (!j.ok) throw new Error(j.error || "Erro no servidor");
-  return j.items;
+// ── Converte linha do banco (snake_case) → objeto do app (camelCase) ──
+function fromDb(r) {
+  return {
+    id: r.id,
+    dataEnvio: r.data_envio || '',
+    autor: r.autor || '',
+    canal: r.canal || '',
+    tipoAprovacao: r.tipo_aprovacao || '',
+    titulo: r.titulo || '',
+    conteudo: r.conteudo || '',
+    linkMidia: r.link_midia || '',
+    status: r.status || 'Aguardando aprovação',
+    checkIA: r.check_ia || false,
+    aprovador: r.aprovador || '',
+    dataPostagem: r.data_postagem || '',
+    comentarios: r.comentarios || '',
+    dataDecisao: r.data_decisao || '',
+    notas: Array.isArray(r.notas) ? r.notas : [],
+    versaoCorrigida: r.versao_corrigida || '',
+    aprovadorSecundario: r.aprovador_secundario || '',
+    parecerSecundario: r.parecer_secundario || '',
+    comentarioSecundario: r.comentario_secundario || '',
+    precisaExterna: r.precisa_externa || false,
+    contatoExterno: r.contato_externo || '',
+    statusExterno: r.status_externo || '',
+    comentarioExterno: r.comentario_externo || '',
+    dataExterna: r.data_externa || '',
+  };
 }
-async function apiPost(body) {
-  const r = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(body),
+
+// ── Converte objeto do app → linha do banco ──────────────────────
+function toDb(it) {
+  return {
+    id: it.id, data_envio: it.dataEnvio, autor: it.autor,
+    canal: it.canal, tipo_aprovacao: it.tipoAprovacao,
+    titulo: it.titulo, conteudo: it.conteudo,
+    link_midia: it.linkMidia || '', status: it.status,
+    check_ia: !!it.checkIA, aprovador: it.aprovador,
+    data_postagem: it.dataPostagem || '', comentarios: it.comentarios || '',
+    data_decisao: it.dataDecisao || '', notas: it.notas || [],
+    versao_corrigida: it.versaoCorrigida || '',
+    aprovador_secundario: it.aprovadorSecundario || '',
+    parecer_secundario: it.parecerSecundario || '',
+    comentario_secundario: it.comentarioSecundario || '',
+    precisa_externa: !!it.precisaExterna,
+    contato_externo: it.contatoExterno || '',
+    status_externo: it.statusExterno || '',
+    comentario_externo: it.comentarioExterno || '',
+    data_externa: it.dataExterna || '',
+  };
+}
+
+// ── Converte apenas os campos de um patch (atualização parcial) ──
+const _PM = {
+  dataEnvio:'data_envio', tipoAprovacao:'tipo_aprovacao', linkMidia:'link_midia',
+  checkIA:'check_ia', dataPostagem:'data_postagem', dataDecisao:'data_decisao',
+  versaoCorrigida:'versao_corrigida', aprovadorSecundario:'aprovador_secundario',
+  parecerSecundario:'parecer_secundario', comentarioSecundario:'comentario_secundario',
+  precisaExterna:'precisa_externa', contatoExterno:'contato_externo',
+  statusExterno:'status_externo', comentarioExterno:'comentario_externo',
+  dataExterna:'data_externa',
+};
+function patchToDb(patch) {
+  const out = {};
+  for (const [k, v] of Object.entries(patch)) out[_PM[k] || k] = v;
+  return out;
+}
+
+// ── Próximo ID sequencial (C-001, C-002…) ───────────────────────
+async function nextId() {
+  const { data } = await sb.from('conteudos').select('id');
+  let max = 0;
+  (data || []).forEach(r => {
+    const m = String(r.id).match(/^C-(\d+)/);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
   });
-  if (!r.ok) throw new Error("HTTP " + r.status);
-  const j = await r.json();
-  if (!j.ok) throw new Error(j.error || "Erro no servidor");
-  return j;
+  return 'C-' + String(max + 1).padStart(3, '0');
+}
+
+// ── Hora atual formatada ─────────────────────────────────────────
+function nowStr() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// ── Decide o rótulo da notificação a partir do que mudou ─────────
+function updateLabel(patch) {
+  if (patch.statusExterno === 'Aprovado') return 'Aprovação externa concluída';
+  if (patch.statusExterno === 'Com ressalvas') return 'Ajustes solicitados (aprovação externa)';
+  if (patch.status === 'Aguardando aprovação externa') return 'Aprovado internamente — aguardando externa';
+  if (patch.status === 'Aprovado') return 'Conteúdo aprovado';
+  if (patch.parecerSecundario === 'Com ressalvas') return 'Ajustes solicitados pelo 2º aprovador';
+  if (patch.status === 'Ajustes solicitados') return 'Ajustes solicitados';
+  if (patch.versaoCorrigida && patch.status === 'Aguardando aprovação') return 'Versão corrigida reenviada';
+  if (patch.parecerSecundario) return 'Parecer do secundário: ' + patch.parecerSecundario;
+  if (patch.notas !== undefined) return ''; // comentários no texto não notificam
+  return 'Conteúdo atualizado';
+}
+
+// ── Notificação no Teams via Apps Script como proxy ──────────────
+function notifyTeams(acao, item) {
+  const url = window.__NOTIFY_URL__;
+  if (!url) return;
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'notify', acao, item }),
+  }).catch(() => {});
 }
 
 function App() {
@@ -1424,7 +1522,7 @@ function App() {
     try { const u = localStorage.getItem("dti_aprovacoes_user"); return TEAM.includes(u) ? u : TEAM[0]; }
     catch { return TEAM[0]; }
   });
-  const [items, setItems] = useState_(null); // null = carregando
+  const [items, setItems] = useState_(null);
   const [loadError, setLoadError] = useState_(null);
   const [toast, setToast] = useState_(null);
   const [userOpen, setUserOpen] = useState_(false);
@@ -1434,41 +1532,50 @@ function App() {
 
   async function reload(silent) {
     if (!silent) { setItems(null); setLoadError(null); }
-    try { const list = await apiList(); setItems(list); setLoadError(null); }
-    catch (e) { if (!silent) setLoadError(String(e.message || e)); }
+    try {
+      const { data, error } = await sb.from('conteudos').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      setItems((data || []).map(fromDb));
+      setLoadError(null);
+    } catch (e) {
+      if (!silent) setLoadError(String(e.message || e));
+    }
   }
 
   useEffect_(() => {
-    if (!/^https:\/\//.test(API_URL)) {
-      setLoadError("Configure a URL do Apps Script na constante API_URL, no topo deste arquivo HTML.");
-      return;
-    }
     reload();
-    const t = setInterval(() => reload(true), 60000); // atualiza a cada 60s
-    return () => clearInterval(t);
+    // Atualização em tempo real: a fila muda sozinha quando alguém salva algo.
+    const channel = sb.channel('conteudos-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conteudos' },
+        () => reload(true))
+      .subscribe();
+    return () => sb.removeChannel(channel);
   }, []);
 
   function showToast(msg, kind = "info") {
     const id = Date.now();
     setToast({ id, msg, kind });
-    setTimeout(() => setToast((cur) => (cur && cur.id === id ? null : cur)), 3600);
+    setTimeout(() => setToast(cur => (cur && cur.id === id ? null : cur)), 3600);
   }
 
   async function createItem(data) {
     if (saving) return;
-    const item = {
-      ...data,
-      status: "Aguardando aprovação",
-      comentarios: "", dataDecisao: "", notas: [], versaoCorrigida: "",
-      parecerSecundario: "", comentarioSecundario: "",
-      statusExterno: "", comentarioExterno: "", dataExterna: "",
-    };
     setSaving(true);
     showToast("Enviando conteúdo…", "info");
     try {
-      const res = await apiPost({ action: "create", item });
-      setItems((arr) => [res.item, ...(arr || [])]);
-      showToast(`Conteúdo ${res.item.id} enviado para a fila.`, "success");
+      const id = await nextId();
+      const item = {
+        ...data, id, dataEnvio: nowStr(),
+        status: 'Aguardando aprovação',
+        comentarios: '', dataDecisao: '', notas: [], versaoCorrigida: '',
+        parecerSecundario: '', comentarioSecundario: '',
+        statusExterno: '', comentarioExterno: '', dataExterna: '',
+      };
+      const { error } = await sb.from('conteudos').insert(toDb(item));
+      if (error) throw error;
+      setItems(arr => [item, ...(arr || [])]);
+      showToast(`Conteúdo ${id} enviado para a fila.`, "success");
+      notifyTeams('Novo conteúdo enviado', item);
       setRoute("fila");
     } catch (e) {
       showToast("Erro ao enviar: " + (e.message || e), "error");
@@ -1477,25 +1584,30 @@ function App() {
   }
 
   function updateItem(id, patch) {
-    // Atualização otimista: muda na tela e salva na planilha em paralelo.
-    setItems((arr) => arr.map((it) => (it.id === id ? { ...it, ...patch } : it)));
-    apiPost({ action: "update", id, patch }).catch((e) => {
-      showToast("Erro ao salvar: " + (e.message || e), "error");
-      reload(true);
+    // Notificação com item já mesclado (antes de atualizar estado).
+    const label = updateLabel(patch);
+    if (label && items) {
+      const it = items.find(x => x.id === id);
+      if (it) notifyTeams(label, { ...it, ...patch });
+    }
+    // Atualização otimista: muda na tela imediatamente.
+    setItems(arr => arr ? arr.map(it => it.id === id ? { ...it, ...patch } : it) : arr);
+    // Persiste no Supabase.
+    sb.from('conteudos').update(patchToDb(patch)).eq('id', id).then(({ error }) => {
+      if (error) { showToast("Erro ao salvar: " + error.message, "error"); reload(true); }
     });
   }
 
   function deleteItem(id) {
-    setItems((arr) => (arr || []).filter((it) => it.id !== id));
+    setItems(arr => (arr || []).filter(it => it.id !== id));
     showToast("Conteúdo " + id + " excluído.", "info");
-    apiPost({ action: "delete", id }).catch((e) => {
-      showToast("Erro ao excluir: " + (e.message || e), "error");
-      reload(true);
+    sb.from('conteudos').delete().eq('id', id).then(({ error }) => {
+      if (error) { showToast("Erro ao excluir: " + error.message, "error"); reload(true); }
     });
   }
 
-  const pendingForMe = (items || []).filter((it) => it.aprovador === user && it.status === "Aguardando aprovação").length;
-  const adjustForMe = (items || []).filter((it) => it.autor === user && it.status === "Ajustes solicitados").length;
+  const pendingForMe = (items || []).filter(it => it.aprovador === user && it.status === "Aguardando aprovação").length;
+  const adjustForMe  = (items || []).filter(it => it.autor === user && it.status === "Ajustes solicitados").length;
 
   const Brand = (
     <div className="brand">
@@ -1506,7 +1618,7 @@ function App() {
 
   const UserPicker = (
     <div className="userpick">
-      <button className="userpick-btn" onClick={() => setUserOpen((o) => !o)}>
+      <button className="userpick-btn" onClick={() => setUserOpen(o => !o)}>
         <Avatar name={user} size={30} />
         <span className="userpick-name">{user}</span>
         <Icon name="chevron" size={15} />
@@ -1516,7 +1628,7 @@ function App() {
           <div className="userpick-scrim" onClick={() => setUserOpen(false)} />
           <div className="userpick-menu">
             <span className="userpick-head">Você é…</span>
-            {TEAM.map((n) => (
+            {TEAM.map(n => (
               <button key={n} className={"userpick-opt" + (n === user ? " is-active" : "")}
                 onClick={() => { setUser(n); setUserOpen(false); }}>
                 <Avatar name={n} size={26} />{n}
@@ -1529,13 +1641,13 @@ function App() {
     </div>
   );
 
-  const NavItems = NAV.map((n) => (
+  const NavItems = NAV.map(n => (
     <button key={n.id} className={"navitem" + (route === n.id ? " is-active" : "")}
       onClick={() => setRoute(n.id)}>
       <Icon name={n.icon} size={19} />
       <span>{n.label}</span>
       {n.id === "aprovador" && pendingForMe > 0 && <span className="nav-badge">{pendingForMe}</span>}
-      {n.id === "meus" && adjustForMe > 0 && <span className="nav-badge">{adjustForMe}</span>}
+      {n.id === "meus"      && adjustForMe  > 0 && <span className="nav-badge">{adjustForMe}</span>}
     </button>
   ));
 
@@ -1545,18 +1657,14 @@ function App() {
       <div className="view">
         <div className="empty big">
           <Icon name="x" size={28} />
-          <p><strong>Não consegui conectar à planilha.</strong></p>
+          <p><strong>Não consegui conectar ao banco de dados.</strong></p>
           <p>{loadError}</p>
           <Button variant="primary" icon="refresh" onClick={() => reload()}>Tentar de novo</Button>
         </div>
       </div>
     );
   } else if (items === null) {
-    content = (
-      <div className="view">
-        <div className="empty big"><Icon name="clock" size={28} /><p>Carregando conteúdos…</p></div>
-      </div>
-    );
+    content = <div className="view"><div className="empty big"><Icon name="clock" size={28} /><p>Carregando conteúdos…</p></div></div>;
   } else if (route === "enviar") {
     content = <SubmitView currentUser={user} onCreate={createItem} toast={showToast} />;
   } else if (route === "meus") {
@@ -1577,15 +1685,28 @@ function App() {
         </button>
         <div className="sidebar-foot">{UserPicker}</div>
       </aside>
-
       <main className="main">{content}</main>
-
       <Toast toast={toast} />
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+// ── Inicialização: carrega equipe e config do Supabase, depois renderiza ──
+async function init() {
+  try {
+    const [{ data: equipe }, { data: cfg }] = await Promise.all([
+      sb.from('equipe').select('nome').eq('ativo', true).order('ordem'),
+      sb.from('config').select('chave, valor'),
+    ]);
+    if (equipe && equipe.length > 0) window.TEAM = equipe.map(r => r.nome);
+    (cfg || []).forEach(r => {
+      if (r.chave === 'apps_script_notify_url' && r.valor) window.__NOTIFY_URL__ = r.valor;
+    });
+  } catch {}
+  ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+}
+
+init();
 
 </script>
 </body>
