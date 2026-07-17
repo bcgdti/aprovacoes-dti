@@ -1071,6 +1071,14 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
   const isAuthor = item.autor === currentUser;
   const [editing, setEditing] = useS(false);
   const [confirmDel, setConfirmDel] = useS(false);
+  const [confirmAprov, setConfirmAprov] = useS(false);
+
+  function marcarAprovado() {
+    onUpdate(item.id, { status: "Aprovado", dataDecisao: nowStr() });
+    toast("Conteúdo marcado como aprovado.", "success");
+    setConfirmAprov(false);
+  }
+
   return (
     <div className="detail">
       <div className="detail-grid">
@@ -1092,10 +1100,23 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
         <CommentableContent item={item} currentUser={currentUser} onUpdate={onUpdate} versao="corrigida" />
       )}
 
-      {isAuthor && !editing && !confirmDel && (
+      {isAuthor && !editing && !confirmDel && !confirmAprov && (
         <div className="action-row" style={{ justifyContent: "flex-start" }}>
           <Button variant="outline" size="sm" icon="edit" onClick={() => setEditing(true)}>Editar</Button>
+          {item.status !== "Aprovado" && (
+            <Button variant="outline" size="sm" icon="check2" onClick={() => setConfirmAprov(true)}>Marcar como aprovado</Button>
+          )}
           <Button variant="danger-soft" size="sm" icon="x" onClick={() => setConfirmDel(true)}>Excluir</Button>
+        </div>
+      )}
+      {confirmAprov && (
+        <div className="action-block is-warn">
+          <div className="action-head"><Icon name="check2" size={16} /><strong>Marcar como aprovado?</strong></div>
+          <p className="action-note">O conteúdo será marcado como aprovado sem passar pelo fluxo de validação. Use apenas quando a aprovação já ocorreu fora da plataforma.</p>
+          <div className="action-row">
+            <Button variant="ghost" size="sm" onClick={() => setConfirmAprov(false)}>Cancelar</Button>
+            <Button variant="primary" size="sm" icon="check2" onClick={marcarAprovado}>Confirmar aprovação</Button>
+          </div>
         </div>
       )}
       {confirmDel && (
@@ -1448,7 +1469,6 @@ function EditPanel({ item, onUpdate, toast, close }) {
 function ResendPanel({ item, onUpdate, toast }) {
   const [text, setText] = useS(item.versaoCorrigida || item.conteudo);
   const [checkIA, setCheckIA] = useS(false);
-  const [confirmAprov, setConfirmAprov] = useS(false);
   const exigeCheck = needsIACheck(item);
 
   function resend() {
@@ -1463,12 +1483,6 @@ function ResendPanel({ item, onUpdate, toast }) {
       statusExterno: "", comentarioExterno: "", dataExterna: "",
     });
     toast("Versão corrigida reenviada para a fila.", "success");
-  }
-
-  function marcarAprovado() {
-    onUpdate(item.id, { status: "Aprovado", dataDecisao: nowStr() });
-    toast("Conteúdo marcado como aprovado.", "success");
-    setConfirmAprov(false);
   }
 
   return (
@@ -1489,21 +1503,9 @@ function ResendPanel({ item, onUpdate, toast }) {
           </label>
         </>
       )}
-      {confirmAprov ? (
-        <div className="action-block is-warn" style={{marginTop:8}}>
-          <div className="action-head"><Icon name="check2" size={16} /><strong>Marcar como aprovado?</strong></div>
-          <p className="action-note">O conteúdo será marcado como aprovado sem passar pelo fluxo de validação. Use apenas quando a aprovação já ocorreu fora da plataforma.</p>
-          <div className="action-row">
-            <Button variant="ghost" size="sm" onClick={() => setConfirmAprov(false)}>Cancelar</Button>
-            <Button variant="primary" size="sm" icon="check2" onClick={marcarAprovado}>Confirmar aprovação</Button>
-          </div>
-        </div>
-      ) : (
-        <div className="action-row">
-          <Button variant="outline" icon="check2" onClick={() => setConfirmAprov(true)}>Marcar como aprovado</Button>
-          <Button variant="primary" icon="send" disabled={!text.trim() || (exigeCheck && !checkIA)} onClick={resend}>Reenviar versão corrigida</Button>
-        </div>
-      )}
+      <div className="action-row">
+        <Button variant="primary" icon="send" disabled={!text.trim() || (exigeCheck && !checkIA)} onClick={resend}>Reenviar versão corrigida</Button>
+      </div>
     </div>
   );
 }
