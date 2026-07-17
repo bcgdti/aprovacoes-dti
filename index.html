@@ -1198,7 +1198,7 @@ function QueueItem({ item, currentUser, onUpdate, onDelete, toast, open, onToggl
   }
 
   return (
-    <div className={"qitem" + (open ? " is-open" : "")}>
+    <div className={"qitem" + (open ? " is-open" : "")} data-qitem-id={item.id}>
       <button className="qitem-head" onClick={onToggle}>
         <span className="qitem-chevron"><Icon name="chevron" size={18} /></span>
         <span className="qitem-main">
@@ -1229,6 +1229,12 @@ function QueueView({ items, currentUser, onUpdate, onDelete, toast, initialOpenI
   const [fAutor, setFAutor] = useS("");
   const [q, setQ] = useS("");
   const [openId, setOpenId] = useS(initialOpenId || null);
+
+  useEffect_(() => {
+    if (!initialOpenId) return;
+    const el = document.querySelector(`[data-qitem-id="${initialOpenId}"]`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [initialOpenId, filtered.length]);
 
   // Autores únicos presentes nos dados (inclui membros inativos que já enviaram)
   const autoresUnicos = useMemo(() => {
