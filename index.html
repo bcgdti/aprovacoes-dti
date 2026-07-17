@@ -215,6 +215,9 @@ a{ color:var(--accent); }
 .qitem-id{ font-family:var(--font-d); font-size:12px; font-weight:700; color:var(--ink-3); letter-spacing:.02em; }
 .qitem-title{ font-family:var(--font-d); font-size:16px; font-weight:600; letter-spacing:-.01em; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .qitem-side{ display:flex; align-items:center; gap:14px; flex-shrink:0; }
+.qitem-link-btn{ background:none; border:none; cursor:pointer; padding:4px; border-radius:6px; color:var(--ink-3); display:flex; align-items:center; opacity:0; transition:opacity .15s; }
+.qitem:hover .qitem-link-btn,.qitem.is-open .qitem-link-btn{ opacity:1; }
+.qitem-link-btn:hover{ color:var(--accent); background:var(--accent-soft); }
 
 /* ───── Detail ───── */
 .detail{ padding:4px 22px 24px; border-top:1px solid var(--line-2); display:flex; flex-direction:column; gap:20px; }
@@ -445,6 +448,7 @@ function Icon({ name, size = 18, style }) {
     filter: <path d="M4 5h16l-6 7v6l-4 2v-8L4 5z" />,
     refresh: <path d="M20.5 12a8.5 8.5 0 1 1-2.5-6M20.5 4v5h-5" />,
     clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+    link: <><path d="M10 13a5 5 0 0 0 7.5.6l3-3a5 5 0 0 0-7-7.1l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.6l-3 3a5 5 0 0 0 7 7.1l1.7-1.7" /></>,
   };
   return <svg {...common}>{P[name] || P.dot}</svg>;
 }
@@ -770,15 +774,19 @@ function SecondaryPanel({ item, onUpdate, toast }) {
 
 /* ════════════════════ APROVAÇÃO EXTERNA ════════════════════ */
 function ExternalPanel({ item, onUpdate, toast }) {
-  const [mode, setMode] = useS(null); // null | "aprovar" | "ressalvas"
+  const [mode, setMode] = useS(null); // null | "aprovar" | "ressalvas" | "alterar"
   const [comment, setComment] = useS("");
+  const jaTemStatus = !!item.statusExterno;
 
   function approve() {
-    onUpdate(item.id, {
-      status: "Aprovado", statusExterno: "Aprovado",
-      comentarioExterno: comment.trim(), dataExterna: now(), dataDecisao: now(),
-    });
-    toast("Aprovação externa registrada. Conteúdo aprovado.", "success");
+    // Se aprovação interna também já está ok (ou não precisa), vai para Aprovado final.
+    const internaOk = item.status === "Aprovado" || item.status === "Aguardando aprovação externa";
+    const novoStatus = internaOk ? "Aprovado" : item.status;
+    const patch = { statusExterno: "Aprovado", comentarioExterno: comment.trim(), dataExterna: now() };
+    if (internaOk) { patch.status = "Aprovado"; patch.dataDecisao = now(); }
+    onUpdate(item.id, patch);
+    toast(internaOk ? "Aprovação externa registrada. Conteúdo aprovado." : "Aprovação externa registrada.", "success");
+    setMode(null);
   }
   function ressalvas() {
     if (!comment.trim()) return;
@@ -787,13 +795,26 @@ function ExternalPanel({ item, onUpdate, toast }) {
       comentarioExterno: comment.trim(), dataExterna: now(),
     });
     toast("Ressalvas externas registradas — conteúdo voltou para ajustes.", "info");
+    setMode(null);
+  }
+  function resetar() {
+    onUpdate(item.id, { statusExterno: "", comentarioExterno: "", dataExterna: "" });
+    toast("Status externo resetado.", "info");
+    setMode(null);
   }
 
   return (
     <div className="action-block decision">
       <div className="action-head"><Icon name="globe" size={16} /><strong>Aprovação externa</strong></div>
-      <p className="action-note">Contato externo: <strong>{item.contatoExterno || "—"}</strong>. Registre aqui o retorno depois de falar com a pessoa por fora.</p>
-      {mode && (
+      <p className="action-note">Contato: <strong>{item.contatoExterno || "não informado"}</strong>. Registre o retorno a qualquer momento — independente da aprovação interna.</p>
+      {jaTemStatus && mode === null && (
+        <div className="info-line" style={{color: item.statusExterno === "Aprovado" ? "#0E8A5F" : "#D9501E"}}>
+          <Icon name={item.statusExterno === "Aprovado" ? "check2" : "edit"} size={15} />
+          Status externo atual: <strong>{item.statusExterno}</strong>
+          {item.dataExterna && <span style={{color:"var(--ink-3)",fontWeight:400}}> · {fmtDate(item.dataExterna)}</span>}
+        </div>
+      )}
+      {mode && mode !== "alterar" && (
         <textarea className="input textarea" rows={2} value={comment} autoFocus
           onChange={(e) => setComment(e.target.value)}
           placeholder={mode === "ressalvas" ? "Descreva as ressalvas do externo (obrigatório)." : "Comentário (opcional)."} />
@@ -801,8 +822,17 @@ function ExternalPanel({ item, onUpdate, toast }) {
       <div className="action-row">
         {mode === null && (
           <>
+            {jaTemStatus && <Button variant="ghost" size="sm" onClick={() => setMode("alterar")}>Alterar</Button>}
             <Button variant="danger-soft" icon="edit" onClick={() => { setMode("ressalvas"); setComment(""); }}>Com ressalvas</Button>
             <Button variant="success" icon="check2" onClick={() => { setMode("aprovar"); setComment(""); }}>Aprovado pelo externo</Button>
+          </>
+        )}
+        {mode === "alterar" && (
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setMode(null)}>Voltar</Button>
+            <Button variant="outline" size="sm" onClick={resetar}>Limpar status externo</Button>
+            <Button variant="danger-soft" icon="edit" onClick={() => { setMode("ressalvas"); setComment(""); }}>Com ressalvas</Button>
+            <Button variant="success" icon="check2" onClick={() => { setMode("aprovar"); setComment(""); }}>Aprovado</Button>
           </>
         )}
         {mode === "aprovar" && (
@@ -828,9 +858,10 @@ function DecisionPanel({ item, onUpdate, toast }) {
   const [comment, setComment] = useS("");
 
   function approve() {
-    if (item.precisaExterna && item.statusExterno !== "Aprovado") {
+    const externaOk = !item.precisaExterna || item.statusExterno === "Aprovado";
+    if (!externaOk) {
       onUpdate(item.id, { status: "Aguardando aprovação externa", comentarios: comment.trim(), dataDecisao: now() });
-      toast("Aprovado internamente — enviado para aprovação externa.", "success");
+      toast("Aprovado internamente — aguardando aprovação externa.", "success");
     } else {
       onUpdate(item.id, { status: "Aprovado", comentarios: comment.trim(), dataDecisao: now() });
       toast("Conteúdo aprovado.", "success");
@@ -1063,9 +1094,7 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
 
       {isAuthor && !editing && !confirmDel && (
         <div className="action-row" style={{ justifyContent: "flex-start" }}>
-          {item.status !== "Aprovado" && (
-            <Button variant="outline" size="sm" icon="edit" onClick={() => setEditing(true)}>Editar conteúdo</Button>
-          )}
+          <Button variant="outline" size="sm" icon="edit" onClick={() => setEditing(true)}>Editar</Button>
           <Button variant="danger-soft" size="sm" icon="x" onClick={() => setConfirmDel(true)}>Excluir</Button>
         </div>
       )}
@@ -1115,7 +1144,7 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
         </div>
       )}
 
-      {/* Ações contextuais */}
+      {/* Ações contextuais — aprovação interna */}
       {item.status === "Aguardando aprovação" && isSecondary && !item.parecerSecundario && (
         <SecondaryPanel item={item} onUpdate={onUpdate} onDelete={onDelete} toast={toast} />
       )}
@@ -1128,11 +1157,8 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
       {item.status === "Aguardando aprovação" && isSecondary && item.parecerSecundario && !isApprover && (
         <div className="info-line ok"><Icon name="check2" size={15} /> Seu parecer foi registrado. Decisão final com {item.aprovador}.</div>
       )}
-      {item.status === "Aguardando aprovação externa" && (isAuthor || isApprover) && (
-        <ExternalPanel item={item} onUpdate={onUpdate} toast={toast} />
-      )}
-      {item.status === "Aguardando aprovação externa" && !isAuthor && !isApprover && (
-        <div className="info-line"><Icon name="globe" size={15} /> Aprovado internamente. Aguardando retorno do externo ({item.contatoExterno || "—"}).</div>
+      {item.status === "Aguardando aprovação externa" && (
+        <div className="info-line"><Icon name="clock" size={15} /> Aprovado internamente — aguardando retorno externo.</div>
       )}
       {item.status === "Ajustes solicitados" && isAuthor && (
         <ResendPanel item={item} onUpdate={onUpdate} onDelete={onDelete} toast={toast} />
@@ -1142,6 +1168,14 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
       )}
       {item.status === "Aprovado" && (
         <div className="info-line ok"><Icon name="check2" size={15} /> Aprovado em {fmtDate(item.dataDecisao)} — liberado para publicação.</div>
+      )}
+
+      {/* Aprovação externa — independente, sempre visível quando necessário */}
+      {item.precisaExterna && (isAuthor || isApprover) && (
+        <ExternalPanel item={item} onUpdate={onUpdate} toast={toast} />
+      )}
+      {item.precisaExterna && !isAuthor && !isApprover && !item.statusExterno && (
+        <div className="info-line"><Icon name="globe" size={15} /> Aprovação externa pendente com: {item.contatoExterno || "—"}.</div>
       )}
     </div>
   );
@@ -1153,6 +1187,16 @@ function Meta({ label, children }) {
 /* ════════════════════ ITEM DA FILA (accordion) ════════════════════ */
 function QueueItem({ item, currentUser, onUpdate, onDelete, toast, open, onToggle }) {
   const ch = CHANNELS[item.canal] || CHANNELS["Outro"];
+
+  function copyLink(e) {
+    e.stopPropagation();
+    const url = window.location.origin + window.location.pathname + "?id=" + encodeURIComponent(item.id);
+    navigator.clipboard.writeText(url).then(
+      () => toast("Link copiado para a área de transferência.", "success"),
+      () => toast("Não foi possível copiar o link.", "error")
+    );
+  }
+
   return (
     <div className={"qitem" + (open ? " is-open" : "")}>
       <button className="qitem-head" onClick={onToggle}>
@@ -1167,6 +1211,9 @@ function QueueItem({ item, currentUser, onUpdate, onDelete, toast, open, onToggl
         <span className="qitem-side">
           <StatusBadge status={item.status} />
           <span className="qitem-approver" title={"Aprovador: " + item.aprovador}><Avatar name={item.aprovador} size={26} /></span>
+          <button className="qitem-link-btn" title="Copiar link direto" onClick={copyLink}>
+            <Icon name="link" size={15} />
+          </button>
         </span>
       </button>
       {open && <ItemDetail item={item} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast} />}
@@ -1175,13 +1222,13 @@ function QueueItem({ item, currentUser, onUpdate, onDelete, toast, open, onToggl
 }
 
 /* ════════════════════ FILA DE APROVAÇÃO ════════════════════ */
-function QueueView({ items, currentUser, onUpdate, onDelete, toast }) {
+function QueueView({ items, currentUser, onUpdate, onDelete, toast, initialOpenId }) {
   const [fStatus, setFStatus] = useS("");
   const [fCanal, setFCanal] = useS("");
   const [fAprov, setFAprov] = useS("");
   const [fAutor, setFAutor] = useS("");
   const [q, setQ] = useS("");
-  const [openId, setOpenId] = useS(null);
+  const [openId, setOpenId] = useS(initialOpenId || null);
 
   // Autores únicos presentes nos dados (inclui membros inativos que já enviaram)
   const autoresUnicos = useMemo(() => {
@@ -1303,15 +1350,30 @@ function ApproverView({ items, currentUser, onUpdate, onDelete, toast }) {
 function EditPanel({ item, onUpdate, toast, close }) {
   const editingCorrected = !!item.versaoCorrigida;
   const [f, setF] = useS({
-    titulo: item.titulo,
-    conteudo: editingCorrected ? item.versaoCorrigida : item.conteudo,
+    autor: item.autor || "",
+    canal: item.canal || "Redes sociais",
+    tipoAprovacao: item.tipoAprovacao || "Ambos",
+    titulo: item.titulo || "",
+    conteudo: editingCorrected ? item.versaoCorrigida : (item.conteudo || ""),
     linkMidia: item.linkMidia || "",
     dataPostagem: item.dataPostagem || "",
+    aprovador: item.aprovador || "",
+    aprovadorSecundario: item.aprovadorSecundario || "",
+    precisaExterna: !!item.precisaExterna,
+    contatoExterno: item.contatoExterno || "",
   });
-  const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
+  const set = (k) => (v) => setF((x) => ({ ...x, [k]: v }));
+  const setE = (k) => (e) => set(k)(e.target.value);
+
   function save() {
     if (!f.titulo.trim() || !f.conteudo.trim()) { toast("Título e conteúdo não podem ficar vazios.", "error"); return; }
-    const patch = { titulo: f.titulo.trim(), linkMidia: f.linkMidia.trim(), dataPostagem: f.dataPostagem };
+    if (!f.aprovador) { toast("Indique o aprovador principal.", "error"); return; }
+    const patch = {
+      autor: f.autor, canal: f.canal, tipoAprovacao: f.tipoAprovacao,
+      titulo: f.titulo.trim(), linkMidia: f.linkMidia.trim(), dataPostagem: f.dataPostagem,
+      aprovador: f.aprovador, aprovadorSecundario: f.aprovadorSecundario,
+      precisaExterna: f.precisaExterna, contatoExterno: f.contatoExterno.trim(),
+    };
     if (editingCorrected) patch.versaoCorrigida = f.conteudo; else patch.conteudo = f.conteudo;
     onUpdate(item.id, patch);
     toast("Conteúdo atualizado.", "success");
@@ -1319,21 +1381,55 @@ function EditPanel({ item, onUpdate, toast, close }) {
   }
   return (
     <div className="action-block">
-      <div className="action-head"><Icon name="edit" size={16} /><strong>Editar {editingCorrected ? "versão corrigida" : "conteúdo"}</strong></div>
+      <div className="action-head"><Icon name="edit" size={16} /><strong>Editar envio</strong></div>
+      <div className="form-grid">
+        <Field label="Autor" required>
+          <Select value={f.autor} onChange={set("autor")} options={TEAM_ATIVOS} placeholder="Autor" />
+        </Field>
+        <Field label="Canal" required>
+          <Select value={f.canal} onChange={set("canal")} options={Object.keys(CHANNELS)} />
+        </Field>
+      </div>
+      <Field label="Tipo de aprovação" required>
+        <div className="seg">
+          {APPROVAL_TYPES.map((t) => (
+            <button type="button" key={t}
+              className={"seg-btn" + (f.tipoAprovacao === t ? " is-active" : "")}
+              onClick={() => set("tipoAprovacao")(t)}>{t}</button>
+          ))}
+        </div>
+      </Field>
       <Field label="Título / descrição" required>
-        <input className="input" value={f.titulo} onChange={set("titulo")} />
+        <input className="input" value={f.titulo} onChange={setE("titulo")} />
       </Field>
       <Field label={editingCorrected ? "Versão corrigida" : "Conteúdo"} required>
-        <textarea className="input textarea" rows={7} value={f.conteudo} onChange={set("conteudo")} />
+        <textarea className="input textarea" rows={6} value={f.conteudo} onChange={setE("conteudo")} />
       </Field>
       <div className="form-grid">
         <Field label="Link de mídia" hint="Opcional">
-          <input className="input" value={f.linkMidia} onChange={set("linkMidia")} placeholder="https://…" />
+          <input className="input" value={f.linkMidia} onChange={setE("linkMidia")} placeholder="https://…" />
         </Field>
         <Field label="Data de postagem prevista" hint="Opcional">
-          <input className="input" type="date" value={f.dataPostagem} onChange={set("dataPostagem")} />
+          <input className="input" type="date" value={f.dataPostagem} onChange={setE("dataPostagem")} />
         </Field>
       </div>
+      <div className="form-grid">
+        <Field label="Aprovador principal" required>
+          <Select value={f.aprovador} onChange={set("aprovador")} options={TEAM_ATIVOS} placeholder="Escolha um aprovador" />
+        </Field>
+        <Field label="Aprovador secundário" hint="Opcional">
+          <Select value={f.aprovadorSecundario} onChange={set("aprovadorSecundario")} options={TEAM_ATIVOS} placeholder="Nenhum" />
+        </Field>
+      </div>
+      <label className="cc-check">
+        <input type="checkbox" checked={f.precisaExterna} onChange={(e) => set("precisaExterna")(e.target.checked)} />
+        <span>Precisa de aprovação externa</span>
+      </label>
+      {f.precisaExterna && (
+        <Field label="Contato do aprovador externo" hint="Nome e contato">
+          <input className="input" value={f.contatoExterno} onChange={setE("contatoExterno")} placeholder="Ex.: Maria (cliente XPTO)" />
+        </Field>
+      )}
       <div className="action-row">
         <Button variant="ghost" size="sm" onClick={close}>Cancelar</Button>
         <Button variant="primary" icon="check2" onClick={save}>Salvar alterações</Button>
@@ -1587,7 +1683,8 @@ function notifyTeams(acao, item) {
 }
 
 function App() {
-  const [route, setRoute] = useState_("fila");
+  const urlId = new URLSearchParams(window.location.search).get("id");
+  const [route, setRoute] = useState_(urlId ? "fila" : "fila");
   const [user, setUser] = useState_(() => {
     try {
       const u = localStorage.getItem("dti_aprovacoes_user");
@@ -1756,7 +1853,7 @@ function App() {
   } else if (route === "aprovador") {
     content = <ApproverView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} />;
   } else {
-    content = <QueueView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} />;
+    content = <QueueView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} initialOpenId={urlId} />;
   }
 
   return (
