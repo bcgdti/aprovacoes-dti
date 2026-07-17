@@ -1230,12 +1230,6 @@ function QueueView({ items, currentUser, onUpdate, onDelete, toast, initialOpenI
   const [q, setQ] = useS("");
   const [openId, setOpenId] = useS(initialOpenId || null);
 
-  useEffect_(() => {
-    if (!initialOpenId) return;
-    const el = document.querySelector(`[data-qitem-id="${initialOpenId}"]`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [initialOpenId, filtered.length]);
-
   // Autores únicos presentes nos dados (inclui membros inativos que já enviaram)
   const autoresUnicos = useMemo(() => {
     const set = new Set(items.map(it => it.autor).filter(Boolean));
@@ -1249,6 +1243,12 @@ function QueueView({ items, currentUser, onUpdate, onDelete, toast, initialOpenI
     (!fAutor || it.autor === fAutor) &&
     (!q || (it.titulo + " " + it.conteudo + " " + it.id + " " + it.autor).toLowerCase().includes(q.toLowerCase()))
   ), [items, fStatus, fCanal, fAprov, fAutor, q]);
+
+  useEffect_(() => {
+    if (!initialOpenId) return;
+    const el = document.querySelector(`[data-qitem-id="${initialOpenId}"]`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [initialOpenId, filtered.length]);
 
   const counts = useMemo(() => {
     const c = {}; STATUS_ORDER.forEach((s) => c[s] = 0);
