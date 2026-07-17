@@ -1702,10 +1702,11 @@ function updateLabel(patch) {
 function notifyTeams(acao, item) {
   const url = window.__NOTIFY_URL__;
   if (!url) return;
+  const link = window.location.origin + window.location.pathname + "?id=" + encodeURIComponent(item.id);
   fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'notify', acao, item }),
+    body: JSON.stringify({ action: 'notify', acao, item, link }),
   }).catch(() => {});
 }
 
