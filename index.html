@@ -355,6 +355,10 @@ const SUPABASE_KEY = "sb_publishable_bvaIqxgvsmVwMS-mSfHxvQ_5OCS5Yz1";
 // Os nomes da equipe ficam aqui no topo, fáceis de editar.
 
 const TEAM = ["Alice", "Aline", "Bruna", "Luís", "Pedro", "Henrique", "Marcela"];
+// Membros inativos — mantidos para histórico, não aparecem nos formulários de envio.
+const TEAM_INATIVOS = ["Luís", "Henrique"];
+const TEAM_ATIVOS = TEAM.filter(n => !TEAM_INATIVOS.includes(n));
+const USUARIO_ANTERIORES = "Usuários anteriores";
 
 // ── Status do fluxo ─────────────────────────────────────────────
 // (check de IA feito ANTES do envio) Aguardando aprovação → Aprovado / Ajustes solicitados
@@ -629,7 +633,7 @@ function SubmitView({ currentUser, onCreate, toast }) {
       <form className="card form" onSubmit={submit}>
         <div className="form-grid">
           <Field label="Autor" required error={errors.autor}>
-            <Select value={form.autor} onChange={set("autor")} options={TEAM} placeholder="Quem está enviando?" />
+            <Select value={form.autor} onChange={set("autor")} options={TEAM_ATIVOS} placeholder="Quem está enviando?" />
           </Field>
           <Field label="Canal" required>
             <Select value={form.canal} onChange={set("canal")} options={Object.keys(CHANNELS)} />
@@ -686,10 +690,10 @@ function SubmitView({ currentUser, onCreate, toast }) {
 
         <div className="form-grid">
           <Field label="Aprovador principal" required hint="Quem dá o ok final" error={errors.aprovador}>
-            <Select value={form.aprovador} onChange={set("aprovador")} options={TEAM} placeholder="Escolha um aprovador" />
+            <Select value={form.aprovador} onChange={set("aprovador")} options={TEAM_ATIVOS} placeholder="Escolha um aprovador" />
           </Field>
           <Field label="Aprovador secundário" hint="Opcional — parecer consultivo" error={errors.aprovadorSecundario}>
-            <Select value={form.aprovadorSecundario} onChange={set("aprovadorSecundario")} options={TEAM} placeholder="Nenhum" />
+            <Select value={form.aprovadorSecundario} onChange={set("aprovadorSecundario")} options={TEAM_ATIVOS} placeholder="Nenhum" />
           </Field>
         </div>
 
@@ -1146,15 +1150,23 @@ function QueueView({ items, currentUser, onUpdate, onDelete, toast }) {
   const [fStatus, setFStatus] = useS("");
   const [fCanal, setFCanal] = useS("");
   const [fAprov, setFAprov] = useS("");
+  const [fAutor, setFAutor] = useS("");
   const [q, setQ] = useS("");
   const [openId, setOpenId] = useS(null);
+
+  // Autores únicos presentes nos dados (inclui membros inativos que já enviaram)
+  const autoresUnicos = useMemo(() => {
+    const set = new Set(items.map(it => it.autor).filter(Boolean));
+    return [...set].sort();
+  }, [items]);
 
   const filtered = useMemo(() => items.filter((it) =>
     (!fStatus || it.status === fStatus) &&
     (!fCanal || it.canal === fCanal) &&
     (!fAprov || it.aprovador === fAprov) &&
+    (!fAutor || it.autor === fAutor) &&
     (!q || (it.titulo + " " + it.conteudo + " " + it.id + " " + it.autor).toLowerCase().includes(q.toLowerCase()))
-  ), [items, fStatus, fCanal, fAprov, q]);
+  ), [items, fStatus, fCanal, fAprov, fAutor, q]);
 
   const counts = useMemo(() => {
     const c = {}; STATUS_ORDER.forEach((s) => c[s] = 0);
@@ -1179,14 +1191,15 @@ function QueueView({ items, currentUser, onUpdate, onDelete, toast }) {
         ))}
       </div>
 
-      <div className="filters">
+      <div className="filters" style={{gridTemplateColumns:"1.6fr 1fr 1fr 1fr 1fr"}}>
         <div className="search">
           <Icon name="filter" size={15} />
           <input className="search-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título, autor, conteúdo…" />
         </div>
         <Select value={fStatus} onChange={setFStatus} options={STATUS_ORDER} placeholder="Todos os status" />
         <Select value={fCanal} onChange={setFCanal} options={Object.keys(CHANNELS)} placeholder="Todos os canais" />
-        <Select value={fAprov} onChange={setFAprov} options={TEAM} placeholder="Todos os aprovadores" />
+        <Select value={fAutor} onChange={setFAutor} options={autoresUnicos} placeholder="Todos os autores" />
+        <Select value={fAprov} onChange={setFAprov} options={TEAM_ATIVOS} placeholder="Todos os aprovadores" />
       </div>
 
       <div className="qlist">
@@ -1345,10 +1358,38 @@ function ResendPanel({ item, onUpdate, toast }) {
 
 /* ════════════════════ MEUS ENVIOS ════════════════════ */
 function MyView({ items, currentUser, onUpdate, onDelete, toast }) {
+  const isHistorico = currentUser === USUARIO_ANTERIORES;
+  const [fAutorHist, setFAutorHist] = useS("");
+  const [openId, setOpenId] = useS(null);
+
+  if (isHistorico) {
+    const histItems = items.filter(it => TEAM_INATIVOS.includes(it.autor));
+    const filtered = fAutorHist ? histItems.filter(it => it.autor === fAutorHist) : histItems;
+    return (
+      <div className="view">
+        <header className="view-head">
+          <h1>Usuários anteriores</h1>
+          <p>Histórico de conteúdos enviados por membros que saíram da equipe.</p>
+        </header>
+        <div style={{marginBottom:18,display:"flex",gap:10,alignItems:"center"}}>
+          <Select value={fAutorHist} onChange={setFAutorHist}
+            options={TEAM_INATIVOS.filter(n => items.some(it => it.autor === n))}
+            placeholder="Todos" />
+        </div>
+        {filtered.length === 0
+          ? <div className="empty big"><Icon name="send" size={28} /><p>Nenhum conteúdo encontrado.</p></div>
+          : <div className="qlist">{filtered.map(it => (
+              <QueueItem key={it.id} item={it} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast}
+                open={openId === it.id} onToggle={() => setOpenId(openId === it.id ? null : it.id)} />
+            ))}</div>
+        }
+      </div>
+    );
+  }
+
   const mine = items.filter((it) => it.autor === currentUser);
   const needsAction = mine.filter((it) => it.status === "Ajustes solicitados");
   const others = mine.filter((it) => it.status !== "Ajustes solicitados");
-  const [openId, setOpenId] = useS(needsAction[0] ? needsAction[0].id : null);
   return (
     <div className="view">
       <header className="view-head">
@@ -1519,8 +1560,11 @@ function notifyTeams(acao, item) {
 function App() {
   const [route, setRoute] = useState_("fila");
   const [user, setUser] = useState_(() => {
-    try { const u = localStorage.getItem("dti_aprovacoes_user"); return TEAM.includes(u) ? u : TEAM[0]; }
-    catch { return TEAM[0]; }
+    try {
+      const u = localStorage.getItem("dti_aprovacoes_user");
+      return (TEAM_ATIVOS.includes(u) || u === USUARIO_ANTERIORES) ? u : TEAM_ATIVOS[0];
+    }
+    catch { return TEAM_ATIVOS[0]; }
   });
   const [items, setItems] = useState_(null);
   const [loadError, setLoadError] = useState_(null);
@@ -1628,13 +1672,24 @@ function App() {
           <div className="userpick-scrim" onClick={() => setUserOpen(false)} />
           <div className="userpick-menu">
             <span className="userpick-head">Você é…</span>
-            {TEAM.map(n => (
+            {TEAM_ATIVOS.map(n => (
               <button key={n} className={"userpick-opt" + (n === user ? " is-active" : "")}
                 onClick={() => { setUser(n); setUserOpen(false); }}>
                 <Avatar name={n} size={26} />{n}
                 {n === user && <Icon name="check2" size={15} style={{ marginLeft: "auto" }} />}
               </button>
             ))}
+            {TEAM_INATIVOS.length > 0 && (
+              <>
+                <span className="userpick-head" style={{marginTop:6}}>Histórico</span>
+                <button className={"userpick-opt" + (user === USUARIO_ANTERIORES ? " is-active" : "")}
+                  onClick={() => { setUser(USUARIO_ANTERIORES); setUserOpen(false); }}>
+                  <span className="avatar" style={{width:26,height:26,background:"#9AA1A4",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",color:"#fff",flexShrink:0}}>UA</span>
+                  {USUARIO_ANTERIORES}
+                  {user === USUARIO_ANTERIORES && <Icon name="check2" size={15} style={{ marginLeft: "auto" }} />}
+                </button>
+              </>
+            )}
           </div>
         </>
       )}
@@ -1695,10 +1750,14 @@ function App() {
 async function init() {
   try {
     const [{ data: equipe }, { data: cfg }] = await Promise.all([
-      sb.from('equipe').select('nome').eq('ativo', true).order('ordem'),
+      sb.from('equipe').select('nome, ativo').order('ordem'),
       sb.from('config').select('chave, valor'),
     ]);
-    if (equipe && equipe.length > 0) window.TEAM = equipe.map(r => r.nome);
+    if (equipe && equipe.length > 0) {
+      window.TEAM         = equipe.map(r => r.nome);
+      window.TEAM_ATIVOS  = equipe.filter(r => r.ativo).map(r => r.nome);
+      window.TEAM_INATIVOS = equipe.filter(r => !r.ativo).map(r => r.nome);
+    }
     (cfg || []).forEach(r => {
       if (r.chave === 'apps_script_notify_url' && r.valor) window.__NOTIFY_URL__ = r.valor;
     });
