@@ -927,20 +927,24 @@ function offsetOf(root, node, off) {
   return total;
 }
 
-function CommentableContent({ item, currentUser, onUpdate }) {
-  const text = item.versaoCorrigida || item.conteudo;
+function CommentableContent({ item, currentUser, onUpdate, versao }) {
+  // versao: "original" | "corrigida" — padrão "original"
+  const v = versao || "original";
+  const text = v === "corrigida" ? (item.versaoCorrigida || "") : item.conteudo;
   const ref = React.useRef(null);
-  const [sel, setSel] = useS(null);       // seleção confirmada (abre popover)
-  const [pending, setPending] = useS(null); // seleção pendente (só mostra botão)
+  const [sel, setSel] = useS(null);
+  const [pending, setPending] = useS(null);
   const [draft, setDraft] = useS("");
   const [activeId, setActiveId] = useS(null);
 
-  // Normaliza: se a nota não tiver offsets, calcula pelo trecho citado.
-  const notes = (item.notas || []).map((n) => {
-    if (typeof n.start === "number" && n.end > n.start) return n;
-    const idx = text.indexOf(n.quote || "");
-    return idx >= 0 ? { ...n, start: idx, end: idx + n.quote.length } : { ...n, start: 0, end: 0 };
-  });
+  // Filtra notas da versão correta: notas sem campo versao são tratadas como "original"
+  const notes = (item.notas || [])
+    .filter((n) => (n.versao || "original") === v)
+    .map((n) => {
+      if (typeof n.start === "number" && n.end > n.start) return n;
+      const idx = text.indexOf(n.quote || "");
+      return idx >= 0 ? { ...n, start: idx, end: idx + n.quote.length } : { ...n, start: 0, end: 0 };
+    });
 
   function onMouseUp() {
     const s = window.getSelection();
@@ -974,7 +978,7 @@ function CommentableContent({ item, currentUser, onUpdate }) {
   function add() {
     if (!draft.trim() || !sel) return;
     const note = { id: "n" + Date.now(), autor: currentUser, start: sel.start, end: sel.end,
-      quote: sel.quote, texto: draft.trim(), data: now() };
+      quote: sel.quote, texto: draft.trim(), data: now(), versao: v };
     onUpdate(item.id, { notas: [...(item.notas || []), note] });
     clearSel(); setDraft("");
   }
@@ -994,7 +998,7 @@ function CommentableContent({ item, currentUser, onUpdate }) {
   return (
     <div className="content-block">
       <span className="block-label" style={{ whiteSpace: "normal" }}>
-        {item.versaoCorrigida ? "Versão corrigida" : "Conteúdo"} <span className="cc-hint">— selecione um trecho para comentar</span>
+        {v === "corrigida" ? "Versão corrigida" : (item.versaoCorrigida ? "Versão original" : "Conteúdo")} <span className="cc-hint">— selecione um trecho para comentar</span>
       </span>
       <div className="content-text cc-text" ref={ref} onMouseUp={onMouseUp}
         onMouseDown={() => { setPending(null); setSel(null); }}>
@@ -1083,14 +1087,10 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
         </Meta>
       </div>
 
+      <CommentableContent item={item} currentUser={currentUser} onUpdate={onUpdate} versao="original" />
       {item.versaoCorrigida && (
-        <div className="content-block">
-          <span className="block-label">Versão original</span>
-          <div className="content-text" style={{ opacity: 0.65 }}>{item.conteudo}</div>
-        </div>
+        <CommentableContent item={item} currentUser={currentUser} onUpdate={onUpdate} versao="corrigida" />
       )}
-
-      <CommentableContent item={item} currentUser={currentUser} onUpdate={onUpdate} />
 
       {isAuthor && !editing && !confirmDel && (
         <div className="action-row" style={{ justifyContent: "flex-start" }}>
@@ -1442,7 +1442,9 @@ function EditPanel({ item, onUpdate, toast, close }) {
 function ResendPanel({ item, onUpdate, toast }) {
   const [text, setText] = useS(item.versaoCorrigida || item.conteudo);
   const [checkIA, setCheckIA] = useS(false);
+  const [confirmAprov, setConfirmAprov] = useS(false);
   const exigeCheck = needsIACheck(item);
+
   function resend() {
     if (!text.trim()) return;
     if (exigeCheck && !checkIA) { toast("Confirme que passou a versão corrigida pelo check de IA.", "error"); return; }
@@ -1456,6 +1458,13 @@ function ResendPanel({ item, onUpdate, toast }) {
     });
     toast("Versão corrigida reenviada para a fila.", "success");
   }
+
+  function marcarAprovado() {
+    onUpdate(item.id, { status: "Aprovado", dataDecisao: nowStr() });
+    toast("Conteúdo marcado como aprovado.", "success");
+    setConfirmAprov(false);
+  }
+
   return (
     <div className="action-block">
       <div className="action-head"><Icon name="edit" size={16} /><strong>Versão corrigida</strong></div>
@@ -1474,9 +1483,21 @@ function ResendPanel({ item, onUpdate, toast }) {
           </label>
         </>
       )}
-      <div className="action-row">
-        <Button variant="primary" icon="send" disabled={!text.trim() || (exigeCheck && !checkIA)} onClick={resend}>Reenviar versão corrigida</Button>
-      </div>
+      {confirmAprov ? (
+        <div className="action-block is-warn" style={{marginTop:8}}>
+          <div className="action-head"><Icon name="check2" size={16} /><strong>Marcar como aprovado?</strong></div>
+          <p className="action-note">O conteúdo será marcado como aprovado sem passar pelo fluxo de validação. Use apenas quando a aprovação já ocorreu fora da plataforma.</p>
+          <div className="action-row">
+            <Button variant="ghost" size="sm" onClick={() => setConfirmAprov(false)}>Cancelar</Button>
+            <Button variant="primary" size="sm" icon="check2" onClick={marcarAprovado}>Confirmar aprovação</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="action-row">
+          <Button variant="outline" icon="check2" onClick={() => setConfirmAprov(true)}>Marcar como aprovado</Button>
+          <Button variant="primary" icon="send" disabled={!text.trim() || (exigeCheck && !checkIA)} onClick={resend}>Reenviar versão corrigida</Button>
+        </div>
+      )}
     </div>
   );
 }
