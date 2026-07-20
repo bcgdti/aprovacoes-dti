@@ -109,6 +109,39 @@ a{ color:var(--accent); }
 .userpick-opt:hover{ background:var(--bg); }
 .userpick-opt.is-active{ color:var(--accent); font-weight:600; }
 
+/* ───── Modal "Quem é você?" ───── */
+.who-overlay{
+  position:fixed; inset:0; z-index:200;
+  background:rgba(1,11,12,.48); backdrop-filter:blur(4px);
+  display:flex; align-items:center; justify-content:center; padding:20px;
+  animation:toastIn .2s ease;
+}
+.who-card{
+  background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow-pop);
+  padding:32px 28px 28px; width:100%; max-width:480px;
+  display:flex; flex-direction:column; gap:20px;
+}
+.who-header{ display:flex; flex-direction:column; gap:6px; }
+.who-header h2{ font-size:22px; font-weight:800; letter-spacing:-.02em; margin:0; }
+.who-header p{ margin:0; color:var(--ink-2); font-size:14.5px; }
+.who-cf-hint{
+  display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600;
+  color:#0A7E94; background:#F0FAFC; border:1px solid #CDEBF1;
+  border-radius:var(--radius-xs); padding:9px 12px;
+}
+.who-grid{
+  display:grid; grid-template-columns:1fr 1fr; gap:10px;
+}
+.who-opt{
+  display:flex; align-items:center; gap:11px; padding:12px 14px;
+  border:2px solid var(--line); border-radius:var(--radius-sm);
+  background:var(--surface); color:var(--ink); font-size:15px;
+  font-weight:600; text-align:left; transition:.13s; cursor:pointer;
+}
+.who-opt:hover{ border-color:var(--ink-3); background:var(--bg); }
+.who-opt.is-selected{ border-color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, var(--surface)); color:var(--accent); }
+.who-actions{ display:flex; justify-content:flex-end; gap:10px; }
+
 /* ───── Main / views ───── */
 .main{ overflow-y:auto; overflow-x:hidden; height:100%; }
 .app.nav-topo .main{ height:auto; }
@@ -1712,23 +1745,98 @@ function notifyTeams(acao, item) {
   }).catch(() => {});
 }
 
+// Tenta ler o e-mail do JWT do Cloudflare Access (cookie CF_Authorization)
+function readCFEmail() {
+  try {
+    const cookie = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('CF_Authorization='));
+    if (!cookie) return null;
+    const jwt = cookie.split('=').slice(1).join('=');
+    const payload = jwt.split('.')[1];
+    if (!payload) return null;
+    const json = JSON.parse(atob(payload.replace(/-/g,'+').replace(/_/g,'/')));
+    return json.email || null;
+  } catch { return null; }
+}
+
+// Tenta mapear e-mail do Cloudflare para um nome da equipe
+function cfEmailToName(email) {
+  if (!email) return null;
+  const map = window.__EMAIL_MAP__ || {};
+  if (map[email]) return map[email];
+  // fallback: tenta pelo prefixo do e-mail (ex: alice.goncalves → Alice)
+  const prefix = email.split('@')[0].split('.')[0];
+  const match = TEAM_ATIVOS.find(n => n.toLowerCase() === prefix.toLowerCase());
+  return match || null;
+}
+
+function WhoAreYouModal({ onConfirm, suggested }) {
+  const [sel, setSel] = useState_(suggested || null);
+  const cfEmail = readCFEmail();
+  return (
+    <div className="who-overlay">
+      <div className="who-card">
+        <div className="who-header">
+          <h2>Olá! Quem é você?</h2>
+          <p>Selecione seu nome para continuar. Isso garante que suas ações fiquem registradas corretamente.</p>
+        </div>
+        {suggested && cfEmail && (
+          <div className="who-cf-hint">
+            <Icon name="check2" size={15} />
+            Identificado pelo login: <strong>{cfEmail}</strong>
+          </div>
+        )}
+        <div className="who-grid">
+          {TEAM_ATIVOS.map(n => (
+            <button key={n} className={"who-opt" + (n === sel ? " is-selected" : "")}
+              onClick={() => setSel(n)}>
+              <Avatar name={n} size={32} />{n}
+              {n === sel && <Icon name="check2" size={15} style={{marginLeft:"auto"}} />}
+            </button>
+          ))}
+        </div>
+        <div className="who-actions">
+          <Button variant="primary" icon="check2" disabled={!sel}
+            onClick={() => sel && onConfirm(sel)}>
+            Confirmar
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const urlId = new URLSearchParams(window.location.search).get("id");
   const [route, setRoute] = useState_(urlId ? "fila" : "fila");
-  const [user, setUser] = useState_(() => {
+
+  // Lê o usuário salvo (para pré-selecionar no modal)
+  const savedUser = (() => {
     try {
       const u = localStorage.getItem("dti_aprovacoes_user");
-      return (TEAM_ATIVOS.includes(u) || u === USUARIO_ANTERIORES) ? u : TEAM_ATIVOS[0];
-    }
-    catch { return TEAM_ATIVOS[0]; }
-  });
+      return (TEAM_ATIVOS.includes(u) || u === USUARIO_ANTERIORES) ? u : null;
+    } catch { return null; }
+  })();
+
+  // Tenta auto-detectar pelo e-mail do Cloudflare
+  const cfSuggested = cfEmailToName(readCFEmail());
+
+  // Modal aparece toda vez que a sessão começa (sessionStorage limpa ao fechar aba)
+  const sessionConfirmed = (() => { try { return !!sessionStorage.getItem("dti_who_confirmed"); } catch { return false; } })();
+
+  const [user, setUser] = useState_(sessionConfirmed ? (savedUser || cfSuggested || TEAM_ATIVOS[0]) : null);
   const [items, setItems] = useState_(null);
   const [loadError, setLoadError] = useState_(null);
   const [toast, setToast] = useState_(null);
   const [userOpen, setUserOpen] = useState_(false);
   const [saving, setSaving] = useState_(false);
 
-  useEffect_(() => { try { localStorage.setItem("dti_aprovacoes_user", user); } catch {} }, [user]);
+  function confirmUser(name) {
+    setUser(name);
+    try { localStorage.setItem("dti_aprovacoes_user", name); } catch {}
+    try { sessionStorage.setItem("dti_who_confirmed", "1"); } catch {}
+  }
+
+  useEffect_(() => { if (user) { try { localStorage.setItem("dti_aprovacoes_user", user); } catch {} } }, [user]);
 
   async function reload(silent) {
     if (!silent) { setItems(null); setLoadError(null); }
@@ -1887,18 +1995,26 @@ function App() {
   }
 
   return (
-    <div className="app nav-sidebar">
-      <aside className="sidebar">
-        {Brand}
-        <nav className="nav">{NavItems}</nav>
-        <button className="navitem" onClick={() => { reload(true); showToast("Lista atualizada.", "info"); }}>
-          <Icon name="refresh" size={18} /><span>Atualizar</span>
-        </button>
-        <div className="sidebar-foot">{UserPicker}</div>
-      </aside>
-      <main className="main">{content}</main>
-      <Toast toast={toast} />
-    </div>
+    <>
+      {!user && (
+        <WhoAreYouModal
+          onConfirm={confirmUser}
+          suggested={cfSuggested || savedUser}
+        />
+      )}
+      <div className="app nav-sidebar" style={!user ? {filter:"blur(3px)",pointerEvents:"none",userSelect:"none"} : {}}>
+        <aside className="sidebar">
+          {Brand}
+          <nav className="nav">{NavItems}</nav>
+          <button className="navitem" onClick={() => { reload(true); showToast("Lista atualizada.", "info"); }}>
+            <Icon name="refresh" size={18} /><span>Atualizar</span>
+          </button>
+          <div className="sidebar-foot">{UserPicker}</div>
+        </aside>
+        <main className="main">{content}</main>
+        <Toast toast={toast} />
+      </div>
+    </>
   );
 }
 
