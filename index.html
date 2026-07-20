@@ -140,7 +140,12 @@ a{ color:var(--accent); }
 }
 .who-opt:hover{ border-color:var(--ink-3); background:var(--bg); }
 .who-opt.is-selected{ border-color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, var(--surface)); color:var(--accent); }
-.who-actions{ display:flex; justify-content:flex-end; gap:10px; }
+.who-actions{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.who-ext-btn{
+  display:inline-flex; align-items:center; gap:7px; background:none; border:none;
+  color:var(--ink-3); font-size:13.5px; font-weight:500; padding:4px 2px; cursor:pointer;
+}
+.who-ext-btn:hover{ color:var(--ink-2); text-decoration:underline; }
 
 /* ───── Main / views ───── */
 .main{ overflow-y:auto; overflow-x:hidden; height:100%; }
@@ -395,6 +400,7 @@ const TEAM = ["Alice", "Aline", "Bruna", "Luís", "Pedro", "Henrique", "Marcela"
 const TEAM_INATIVOS = ["Luís", "Henrique"];
 const TEAM_ATIVOS = TEAM.filter(n => !TEAM_INATIVOS.includes(n));
 const USUARIO_ANTERIORES = "Usuários anteriores";
+const USUARIO_EXTERNO    = "Visitante";
 
 // ── Status do fluxo ─────────────────────────────────────────────
 // (check de IA feito ANTES do envio) Aguardando aprovação → Aprovado / Ajustes solicitados
@@ -1795,6 +1801,9 @@ function WhoAreYouModal({ onConfirm, suggested }) {
           ))}
         </div>
         <div className="who-actions">
+          <button className="who-ext-btn" onClick={() => onConfirm(USUARIO_EXTERNO)}>
+            <Icon name="user" size={15} />Entrar como visitante (só visualizar / comentar)
+          </button>
           <Button variant="primary" icon="check2" disabled={!sel}
             onClick={() => sel && onConfirm(sel)}>
             Confirmar
@@ -1813,7 +1822,7 @@ function App() {
   const savedUser = (() => {
     try {
       const u = localStorage.getItem("dti_aprovacoes_user");
-      return (TEAM_ATIVOS.includes(u) || u === USUARIO_ANTERIORES) ? u : null;
+      return (TEAM_ATIVOS.includes(u) || u === USUARIO_ANTERIORES || u === USUARIO_EXTERNO) ? u : null;
     } catch { return null; }
   })();
 
@@ -1914,6 +1923,8 @@ function App() {
     });
   }
 
+  const isExterno = user === USUARIO_EXTERNO;
+
   const pendingForMe = (items || []).filter(it => it.aprovador === user && it.status === "Aguardando aprovação").length;
   const adjustForMe  = (items || []).filter(it => it.autor === user && it.status === "Ajustes solicitados").length;
 
@@ -1954,13 +1965,21 @@ function App() {
                 </button>
               </>
             )}
+            <span className="userpick-head" style={{marginTop:6}}>Acesso externo</span>
+            <button className={"userpick-opt" + (user === USUARIO_EXTERNO ? " is-active" : "")}
+              onClick={() => { setUser(USUARIO_EXTERNO); setUserOpen(false); }}>
+              <span className="avatar" style={{width:26,height:26,background:"#9AA1A4",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",color:"#fff",flexShrink:0}}>V</span>
+              {USUARIO_EXTERNO}
+              {user === USUARIO_EXTERNO && <Icon name="check2" size={15} style={{ marginLeft: "auto" }} />}
+            </button>
           </div>
         </>
       )}
     </div>
   );
 
-  const NavItems = NAV.map(n => (
+  const visibleNav = isExterno ? NAV.filter(n => n.id === "fila") : NAV;
+  const NavItems = visibleNav.map(n => (
     <button key={n.id} className={"navitem" + (route === n.id ? " is-active" : "")}
       onClick={() => setRoute(n.id)}>
       <Icon name={n.icon} size={19} />
@@ -1984,11 +2003,11 @@ function App() {
     );
   } else if (items === null) {
     content = <div className="view"><div className="empty big"><Icon name="clock" size={28} /><p>Carregando conteúdos…</p></div></div>;
-  } else if (route === "enviar") {
+  } else if (route === "enviar" && !isExterno) {
     content = <SubmitView currentUser={user} onCreate={createItem} toast={showToast} />;
-  } else if (route === "meus") {
+  } else if (route === "meus" && !isExterno) {
     content = <MyView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} />;
-  } else if (route === "aprovador") {
+  } else if (route === "aprovador" && !isExterno) {
     content = <ApproverView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} />;
   } else {
     content = <QueueView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} initialOpenId={urlId} />;
