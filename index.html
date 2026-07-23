@@ -1523,7 +1523,7 @@ function HistoricoAjustes({ historico }) {
   return (
     <div className="hist-section">
       <button className="hist-toggle" onClick={() => setOpen(o => !o)}>
-        <Icon name={open ? "chevron-up" : "chevron-down"} size={13} />
+        <Icon name="chevron" size={13} style={{transform: open ? "rotate(180deg)" : "none", transition:".15s"}} />
         {historico.length} rodada{historico.length > 1 ? 's' : ''} de ajuste{historico.length > 1 ? 's' : ''} anterior{historico.length > 1 ? 'es' : ''}
       </button>
       {open && (
