@@ -2102,6 +2102,9 @@ async function init() {
     }
     (cfg || []).forEach(r => {
       if (r.chave === 'apps_script_notify_url' && r.valor) window.__NOTIFY_URL__ = r.valor;
+      if (r.chave === 'email_map' && r.valor) {
+        try { window.__EMAIL_MAP__ = JSON.parse(r.valor); } catch {}
+      }
     });
   } catch {}
   ReactDOM.createRoot(document.getElementById("root")).render(<App />);
