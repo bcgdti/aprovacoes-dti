@@ -405,8 +405,8 @@ const SUPABASE_KEY = "sb_publishable_bvaIqxgvsmVwMS-mSfHxvQ_5OCS5Yz1";
 
 const TEAM = ["Alice", "Aline", "Bruna", "Luís", "Pedro", "Henrique", "Marcela"];
 // Membros inativos — mantidos para histórico, não aparecem nos formulários de envio.
-const TEAM_INATIVOS = ["Luís", "Henrique"];
-const TEAM_ATIVOS = TEAM.filter(n => !TEAM_INATIVOS.includes(n));
+let TEAM_INATIVOS = ["Luís", "Henrique"];
+let TEAM_ATIVOS = TEAM.filter(n => !TEAM_INATIVOS.includes(n));
 const USUARIO_ANTERIORES = "Usuários anteriores";
 const USUARIO_EXTERNO    = "Visitante";
 const ADMIN_EMAILS = ["alice.goncalves@dtidigital.com.br", "somosdti@dtidigital.com.br", "acessosmkt@dtidigital.com.br"];
@@ -1674,7 +1674,7 @@ function MyView({ items, currentUser, onUpdate, onDelete, toast }) {
 }
 
 /* ════════════════════ CONFIGURAÇÕES (admin) ════════════════════ */
-function ConfigView({ toast }) {
+function ConfigView({ toast, onTeamChange }) {
   const [equipe, setEquipe] = useS(null);
   const [editingEmail, setEditingEmail] = useS(null);
   const [emailDraft, setEmailDraft] = useS('');
@@ -1697,6 +1697,9 @@ function ConfigView({ toast }) {
     window.TEAM_INATIVOS = data.filter(r => !r.ativo).map(r => r.nome);
     window.__TEAM_EMAILS__ = {};
     data.forEach(r => { if (r.email) window.__TEAM_EMAILS__[r.nome] = r.email; });
+    TEAM_ATIVOS   = window.TEAM_ATIVOS;
+    TEAM_INATIVOS = window.TEAM_INATIVOS;
+    if (onTeamChange) onTeamChange();
   }
 
   async function toggleAtivo(member, ativo) {
@@ -2018,6 +2021,8 @@ function WhoAreYouModal({ onConfirm, suggested }) {
 function App() {
   const urlId = new URLSearchParams(window.location.search).get("id");
   const [route, setRoute] = useState_(urlId ? "fila" : "fila");
+  const [teamKey, setTeamKey] = useState_(0);
+  function onTeamChange() { setTeamKey(k => k + 1); }
 
   // Lê o usuário salvo (para pré-selecionar no modal)
   const savedUser = (() => {
@@ -2215,7 +2220,7 @@ function App() {
   } else if (route === "aprovador" && !isExterno) {
     content = <ApproverView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} />;
   } else if (route === "config" && isAdmin) {
-    content = <ConfigView toast={showToast} />;
+    content = <ConfigView toast={showToast} onTeamChange={onTeamChange} />;
   } else {
     content = <QueueView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} initialOpenId={urlId} />;
   }
@@ -2255,6 +2260,8 @@ async function init() {
       window.TEAM          = equipe.map(r => r.nome);
       window.TEAM_ATIVOS   = equipe.filter(r => r.ativo).map(r => r.nome);
       window.TEAM_INATIVOS = equipe.filter(r => !r.ativo).map(r => r.nome);
+      TEAM_ATIVOS   = window.TEAM_ATIVOS;
+      TEAM_INATIVOS = window.TEAM_INATIVOS;
       window.__TEAM_EMAILS__ = {};
       equipe.forEach(r => { if (r.email) window.__TEAM_EMAILS__[r.nome] = r.email; });
     }
