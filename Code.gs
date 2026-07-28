@@ -9,13 +9,12 @@ const TEAMS_WEBHOOK_URL = "https://default9c853ba5ce7c4b719b14429ce4db79.dd.envi
 
 // E-mails do Teams de cada pessoa — usados para as @menções pingarem.
 const TEAM_EMAILS = {
-  "Alice": "alice.goncalves@dtidigital.com.br",
-  "Aline": "aline.mendes@dtidigital.com.br",
-  "Bruna": "bruna.alvim@dtidigital.com.br",
-  "Pedro": "pedro.martino@dtidigital.com.br",
-  "Luís": "luis.soares@dtidigital.com.br",
-  "Marcela": "marcela.assis@dtidigital.com.br",
-  "Henrique": "henrique.abinajm@dtidigital.com.br",
+  "Alice":    "alice.goncalves@dtidigital.com.br",
+  "Aline":    "aline.mendes@dtidigital.com.br",
+  "Bruna":    "bruna.alvim@dtidigital.com.br",
+  "Isadora":  "isadora.marques@dtidigital.com.br",
+  "Marcela":  "marcela.assis@dtidigital.com.br",
+  "Pedro":    "pedro.martino@dtidigital.com.br",
 };
 
 const SHEET_NAME = "Conteúdos";
@@ -47,14 +46,12 @@ function getSheet() {
     sh.appendRow(HEADERS);
     sh.setFrozenRows(1);
   } else if (sh.getLastColumn() < HEADERS.length) {
-    // Migração: garante todas as colunas e reescreve o cabeçalho.
     sh.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     sh.setFrozenRows(1);
   }
   return sh;
 }
 
-// ── GET: lista todos os conteúdos ───────────────────────────────
 function doGet() {
   try {
     return json({ ok: true, items: listItems() });
@@ -93,7 +90,6 @@ function cellValue(k, item) {
   return item[k] === undefined || item[k] === null ? "" : item[k];
 }
 
-// ── POST: cria ou atualiza um conteúdo ──────────────────────────
 function doPost(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -122,7 +118,6 @@ function doPost(e) {
               sh.getRange(row, c + 1).setValue(cellValue(k, one));
             }
           });
-          // Lê o item atualizado e notifica conforme a mudança.
           const merged = rowToObj(sh.getRange(row, 1, 1, KEYS.length).getValues()[0]);
           const label = updateLabel(patch);
           if (label) notifyTeams(label, merged);
@@ -144,7 +139,10 @@ function doPost(e) {
     }
 
     if (body.action === "notify") {
-      if (body.acao && body.item) notifyTeams(body.acao, body.item);
+      if (body.acao && body.item) {
+        if (body.teamEmails) body.item._teamEmails = body.teamEmails;
+        notifyTeams(body.acao, body.item, body.link);
+      }
       return json({ ok: true });
     }
 
@@ -156,7 +154,6 @@ function doPost(e) {
   }
 }
 
-// Decide o rótulo da notificação a partir do que mudou.
 function updateLabel(patch) {
   if (patch.statusExterno === "Aprovado") return "Aprovação externa concluída";
   if (patch.statusExterno === "Com ressalvas") return "Ajustes solicitados (aprovação externa)";
@@ -166,52 +163,41 @@ function updateLabel(patch) {
   if (patch.status === "Ajustes solicitados") return "Ajustes solicitados";
   if (patch.hasOwnProperty("versaoCorrigida") && patch.status === "Aguardando aprovação") return "Versão corrigida reenviada";
   if (patch.parecerSecundario) return "Parecer do secundário: " + patch.parecerSecundario;
-  if (patch.hasOwnProperty("notas")) return ""; // comentários no texto não notificam o Teams
+  if (patch.hasOwnProperty("notas")) return "";
   return "Conteúdo atualizado";
 }
 
-// ── Notificação no Teams (Power Automate Workflows) ─────────────
-function notifyTeams(acao, item) {
+function notifyTeams(acao, item, link) {
   if (!TEAMS_WEBHOOK_URL) return;
   try {
-    const msg = buildTeamsMessage(acao, item);
-
+    const msg = buildTeamsMessage(acao, item, item._teamEmails);
     const body = [{ type: "TextBlock", text: '"' + item.titulo + '" - ' + item.id, wrap: true, weight: "Bolder", size: "Medium" }];
     msg.lines.forEach(function (ln) {
       body.push({ type: "TextBlock", text: ln.text, wrap: true, spacing: "Small", weight: ln.bold ? "Bolder" : "Default" });
     });
-
+    if (link) body.push({ type: "TextBlock", text: link, wrap: true, spacing: "Small" });
     const content = {
       "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-      type: "AdaptiveCard",
-      version: "1.4",
-      body: body,
+      type: "AdaptiveCard", version: "1.4", body: body,
     };
     if (msg.entities.length) content.msteams = { entities: msg.entities };
-
     const card = {
       type: "message",
       attachments: [{ contentType: "application/vnd.microsoft.card.adaptive", content: content }],
     };
-
     UrlFetchApp.fetch(TEAMS_WEBHOOK_URL, {
-      method: "post",
-      contentType: "application/json",
-      muteHttpExceptions: true,
-      payload: JSON.stringify(card),
+      method: "post", contentType: "application/json",
+      muteHttpExceptions: true, payload: JSON.stringify(card),
     });
-  } catch (err) {
-    // Notificação nunca deve quebrar o fluxo principal.
-  }
+  } catch (err) {}
 }
 
-// Monta as linhas e as @menções de cada tipo de notificação.
-function buildTeamsMessage(acao, item) {
+function buildTeamsMessage(acao, item, teamEmails) {
+  const allEmails = Object.assign({}, TEAM_EMAILS, teamEmails || {});
   const entities = [];
   const seen = {};
-  // Cria token de menção <at>Nome</at> e registra a entidade (id = e-mail).
   function at(name) {
-    const email = TEAM_EMAILS[name];
+    const email = allEmails[name];
     if (!email) return name || "";
     if (!seen[name]) {
       seen[name] = true;
@@ -224,63 +210,37 @@ function buildTeamsMessage(acao, item) {
     if (item.aprovadorSecundario) s += ". 2º aprovador: " + at(item.aprovadorSecundario);
     return s;
   }
-
   const lines = [];
   const add = (text, bold) => lines.push({ text: text, bold: !!bold });
-
   if (acao === "Novo conteúdo enviado") {
-    add("Status: Aguardando aprovação 🕐", true);
-    add(aprovadores());
-    add("Conteúdo por: " + item.autor);
+    add("Status: Aguardando aprovação 🕐", true); add(aprovadores()); add("Conteúdo por: " + item.autor);
     if (item.precisaExterna) add("Aprovação externa depois com: " + item.contatoExterno);
   } else if (acao === "Aprovado internamente — aguardando externa") {
     add("Status: Aguardando aprovação externa 🌐", true);
     add("Aprovado internamente por: " + at(item.aprovador));
-    add("Aprovação externa com: " + item.contatoExterno);
-    add("Responsável: " + at(item.autor));
+    add("Aprovação externa com: " + item.contatoExterno); add("Responsável: " + at(item.autor));
   } else if (acao === "Aprovação externa concluída") {
-    add("Status: Aprovado ✅", true);
-    add("Aprovado externamente por: " + item.contatoExterno);
-    add("Conteúdo por: " + item.autor);
+    add("Status: Aprovado ✅", true); add("Aprovado externamente por: " + item.contatoExterno); add("Conteúdo por: " + item.autor);
   } else if (acao === "Ajustes solicitados (aprovação externa)") {
-    add("Status: Ajustes solicitados ✏️", true);
-    add("Ressalvas externas (" + item.contatoExterno + ")");
-    add("Conteúdo por: " + at(item.autor));
+    add("Status: Ajustes solicitados ✏️", true); add("Ressalvas externas (" + item.contatoExterno + ")"); add("Conteúdo por: " + at(item.autor));
   } else if (acao === "Conteúdo aprovado") {
-    add("Status: Aprovado ✅", true);
-    add("Aprovado por: " + at(item.aprovador));
-    add("Conteúdo por: " + item.autor);
+    add("Status: Aprovado ✅", true); add("Aprovado por: " + at(item.aprovador)); add("Conteúdo por: " + item.autor);
   } else if (acao === "Ajustes solicitados") {
-    add("Status: Ajustes solicitados ✏️", true);
-    add("Solicitado por: " + at(item.aprovador));
-    add("Conteúdo por: " + at(item.autor));
+    add("Status: Ajustes solicitados ✏️", true); add("Solicitado por: " + at(item.aprovador)); add("Conteúdo por: " + at(item.autor));
   } else if (acao === "Ajustes solicitados pelo 2º aprovador") {
-    add("Status: Ajustes solicitados ✏️", true);
-    add("Ressalvas do 2º aprovador: " + at(item.aprovadorSecundario));
-    add("Conteúdo por: " + at(item.autor));
+    add("Status: Ajustes solicitados ✏️", true); add("Ressalvas do 2º aprovador: " + at(item.aprovadorSecundario)); add("Conteúdo por: " + at(item.autor));
   } else if (acao === "Versão corrigida reenviada") {
-    add("Status: Aguardando aprovação 🔄", true);
-    add("Reenviado por: " + at(item.autor));
-    add(aprovadores());
+    add("Status: Aguardando aprovação 🔄", true); add("Reenviado por: " + at(item.autor)); add(aprovadores());
   } else if (acao.indexOf("Parecer do secundário") === 0) {
     const ressalva = item.parecerSecundario === "Com ressalvas";
     add("Parecer do 2º aprovador: " + (item.parecerSecundario || "registrado") + (ressalva ? " ⚠️" : " 👍"), true);
-    add("Por: " + at(item.aprovadorSecundario));
-    add("Decisão final com: " + at(item.aprovador));
-  } else if (acao === "Novo comentário no texto") {
-    add("Novo comentário no texto 💬", true);
-    add("Conteúdo por: " + at(item.autor));
-    add("Aprovador: " + at(item.aprovador));
+    add("Por: " + at(item.aprovadorSecundario)); add("Decisão final com: " + at(item.aprovador));
   } else {
-    add("Status: " + item.status, true);
-    add(aprovadores());
-    add("Conteúdo por: " + item.autor);
+    add("Status: " + item.status, true); add(aprovadores()); add("Conteúdo por: " + item.autor);
   }
-
   return { lines: lines, entities: entities };
 }
 
-// ── Helpers ─────────────────────────────────────────────────────
 function nextId(sh) {
   let max = 0;
   if (sh.getLastRow() >= 2) {

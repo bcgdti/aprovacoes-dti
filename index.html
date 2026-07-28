@@ -409,6 +409,7 @@ const TEAM_INATIVOS = ["Luís", "Henrique"];
 const TEAM_ATIVOS = TEAM.filter(n => !TEAM_INATIVOS.includes(n));
 const USUARIO_ANTERIORES = "Usuários anteriores";
 const USUARIO_EXTERNO    = "Visitante";
+const ADMIN_EMAILS = ["alice.goncalves@dtidigital.com.br", "somosdti@dtidigital.com.br", "acessosmkt@dtidigital.com.br"];
 
 // ── Status do fluxo ─────────────────────────────────────────────
 // (check de IA feito ANTES do envio) Aguardando aprovação → Aprovado / Ajustes solicitados
@@ -496,6 +497,8 @@ function Icon({ name, size = 18, style }) {
     refresh: <path d="M20.5 12a8.5 8.5 0 1 1-2.5-6M20.5 4v5h-5" />,
     clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
     link: <><path d="M10 13a5 5 0 0 0 7.5.6l3-3a5 5 0 0 0-7-7.1l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.6l-3 3a5 5 0 0 0 7 7.1l1.7-1.7" /></>,
+    settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33A1.65 1.65 0 0 0 14 20.9V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></>,
+    users: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,
   };
   return <svg {...common}>{P[name] || P.dot}</svg>;
 }
@@ -1670,7 +1673,153 @@ function MyView({ items, currentUser, onUpdate, onDelete, toast }) {
   );
 }
 
-Object.assign(window, { SubmitView, QueueView, ApproverView, MyView, EditPanel, ResendPanel });
+/* ════════════════════ CONFIGURAÇÕES (admin) ════════════════════ */
+function ConfigView({ toast }) {
+  const [equipe, setEquipe] = useS(null);
+  const [editingEmail, setEditingEmail] = useS(null);
+  const [emailDraft, setEmailDraft] = useS('');
+  const [newNome, setNewNome] = useS('');
+  const [newEmail, setNewEmail] = useS('');
+  const [busy, setBusy] = useS(false);
+
+  async function load() {
+    const { data } = await sb.from('equipe').select('nome, ativo, email, ordem').order('ordem');
+    setEquipe(data || []);
+  }
+
+  useEffect_(() => { load(); }, []);
+
+  async function reloadGlobals() {
+    const { data } = await sb.from('equipe').select('nome, ativo, email').order('ordem');
+    if (!data) return;
+    window.TEAM          = data.map(r => r.nome);
+    window.TEAM_ATIVOS   = data.filter(r => r.ativo).map(r => r.nome);
+    window.TEAM_INATIVOS = data.filter(r => !r.ativo).map(r => r.nome);
+    window.__TEAM_EMAILS__ = {};
+    data.forEach(r => { if (r.email) window.__TEAM_EMAILS__[r.nome] = r.email; });
+  }
+
+  async function toggleAtivo(member, ativo) {
+    setBusy(true);
+    const { error } = await sb.from('equipe').update({ ativo }).eq('nome', member.nome);
+    if (error) toast('Erro: ' + error.message, 'error');
+    else {
+      toast(ativo ? member.nome + ' reativado.' : member.nome + ' movido para usuários anteriores.', 'success');
+      await load(); await reloadGlobals();
+    }
+    setBusy(false);
+  }
+
+  async function saveEmail(member) {
+    setBusy(true);
+    const { error } = await sb.from('equipe').update({ email: emailDraft.trim() }).eq('nome', member.nome);
+    if (error) toast('Erro: ' + error.message, 'error');
+    else {
+      toast('E-mail atualizado.', 'success');
+      setEditingEmail(null);
+      await load(); await reloadGlobals();
+    }
+    setBusy(false);
+  }
+
+  async function addMember() {
+    if (!newNome.trim()) return;
+    setBusy(true);
+    const maxOrdem = (equipe || []).reduce((m, e) => Math.max(m, e.ordem || 0), 0);
+    const { error } = await sb.from('equipe').insert({ nome: newNome.trim(), ativo: true, email: newEmail.trim(), ordem: maxOrdem + 1 });
+    if (error) toast('Erro: ' + error.message, 'error');
+    else {
+      toast(newNome.trim() + ' adicionado à equipe.', 'success');
+      setNewNome(''); setNewEmail('');
+      await load(); await reloadGlobals();
+    }
+    setBusy(false);
+  }
+
+  const ativos   = (equipe || []).filter(m => m.ativo);
+  const inativos = (equipe || []).filter(m => !m.ativo);
+
+  function memberRow(m) {
+    const isEditing = editingEmail === m.nome;
+    return (
+      <div key={m.nome} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'var(--surface-2)',borderRadius:'var(--radius-sm)',border:'1px solid var(--line-2)',opacity:m.ativo?1:.65}}>
+        <Avatar name={m.nome} size={34}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:600,fontSize:15}}>{m.nome}</div>
+          {isEditing ? (
+            <div style={{display:'flex',gap:6,marginTop:5,alignItems:'center',flexWrap:'wrap'}}>
+              <input className="input" style={{padding:'5px 9px',fontSize:13,height:'auto',maxWidth:280}}
+                value={emailDraft} onChange={e => setEmailDraft(e.target.value)}
+                placeholder="email@dtidigital.com.br" autoFocus />
+              <Button variant="primary" size="sm" icon="check2" disabled={busy} onClick={() => saveEmail(m)}>Salvar</Button>
+              <Button variant="ghost" size="sm" onClick={() => setEditingEmail(null)}>Cancelar</Button>
+            </div>
+          ) : (
+            <div style={{display:'flex',alignItems:'center',gap:5,marginTop:2}}>
+              <span style={{fontSize:13,color:'var(--ink-3)'}}>{m.email || <em>e-mail não definido</em>}</span>
+              <button style={{background:'none',border:'none',cursor:'pointer',color:'var(--ink-3)',padding:'1px 4px',borderRadius:4}}
+                title="Editar e-mail" onClick={() => { setEditingEmail(m.nome); setEmailDraft(m.email || ''); }}>
+                <Icon name="edit" size={13}/>
+              </button>
+            </div>
+          )}
+        </div>
+        {!isEditing && (
+          m.ativo
+            ? <Button variant="ghost" size="sm" disabled={busy} onClick={() => toggleAtivo(m, false)}>Mover para anteriores</Button>
+            : <Button variant="outline" size="sm" disabled={busy} onClick={() => toggleAtivo(m, true)}>Reativar</Button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="view view-narrow">
+      <header className="view-head">
+        <h1>Configurações</h1>
+        <p>Gerencie os membros da equipe. Apenas administradores têm acesso.</p>
+      </header>
+
+      <div className="card form">
+        <div className="section-label">
+          <Icon name="users" size={17}/>Membros ativos
+          <span className="count-pill">{ativos.length}</span>
+        </div>
+        {equipe === null
+          ? <div className="empty"><Icon name="clock" size={22}/><p>Carregando…</p></div>
+          : <div style={{display:'flex',flexDirection:'column',gap:8}}>{ativos.map(memberRow)}</div>
+        }
+      </div>
+
+      {inativos.length > 0 && (
+        <div className="card form" style={{marginTop:16}}>
+          <div className="section-label muted">
+            <Icon name="users" size={17}/>Usuários anteriores
+            <span className="count-pill">{inativos.length}</span>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>{inativos.map(memberRow)}</div>
+        </div>
+      )}
+
+      <div className="card form" style={{marginTop:16}}>
+        <div className="section-label"><Icon name="check2" size={17}/>Adicionar membro</div>
+        <Field label="Nome" required>
+          <input className="input" value={newNome} onChange={e => setNewNome(e.target.value)} placeholder="Ex.: Fernanda" />
+        </Field>
+        <Field label="E-mail do Teams" hint="Usado para @menções nas notificações">
+          <input className="input" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="nome@dtidigital.com.br" />
+        </Field>
+        <div className="form-actions">
+          <Button variant="primary" icon="check2" disabled={!newNome.trim() || busy} onClick={addMember}>
+            Adicionar à equipe
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { SubmitView, QueueView, ApproverView, MyView, EditPanel, ResendPanel, ConfigView });
 
 </script>
 <script type="text/babel" data-presets="react">
@@ -1682,10 +1831,11 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const NAV = [
-  { id: "enviar", label: "Enviar conteúdo", icon: "send" },
-  { id: "meus", label: "Meus envios", icon: "user" },
-  { id: "fila", label: "Fila de aprovação", icon: "inbox" },
+  { id: "enviar",    label: "Enviar conteúdo",    icon: "send" },
+  { id: "meus",      label: "Meus envios",         icon: "user" },
+  { id: "fila",      label: "Fila de aprovação",   icon: "inbox" },
   { id: "aprovador", label: "Painel do aprovador", icon: "check" },
+  { id: "config",    label: "Configurações",       icon: "settings", adminOnly: true },
 ];
 
 // ── Converte linha do banco (snake_case) → objeto do app (camelCase) ──
@@ -1798,7 +1948,7 @@ function notifyTeams(acao, item) {
   fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'notify', acao, item, link }),
+    body: JSON.stringify({ action: 'notify', acao, item, link, teamEmails: window.__TEAM_EMAILS__ || {} }),
   }).catch(() => {});
 }
 
@@ -1975,6 +2125,8 @@ function App() {
   }
 
   const isExterno = user === USUARIO_EXTERNO;
+  const cfEmail   = readCFEmail();
+  const isAdmin   = cfEmail && ADMIN_EMAILS.includes(cfEmail);
 
   const pendingForMe = (items || []).filter(it => it.aprovador === user && it.status === "Aguardando aprovação").length;
   const adjustForMe  = (items || []).filter(it => it.autor === user && it.status === "Ajustes solicitados").length;
@@ -2029,7 +2181,9 @@ function App() {
     </div>
   );
 
-  const visibleNav = isExterno ? NAV.filter(n => n.id === "fila") : NAV;
+  const visibleNav = isExterno
+    ? NAV.filter(n => n.id === "fila")
+    : NAV.filter(n => !n.adminOnly || isAdmin);
   const NavItems = visibleNav.map(n => (
     <button key={n.id} className={"navitem" + (route === n.id ? " is-active" : "")}
       onClick={() => setRoute(n.id)}>
@@ -2060,6 +2214,8 @@ function App() {
     content = <MyView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} />;
   } else if (route === "aprovador" && !isExterno) {
     content = <ApproverView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} />;
+  } else if (route === "config" && isAdmin) {
+    content = <ConfigView toast={showToast} />;
   } else {
     content = <QueueView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} initialOpenId={urlId} />;
   }
@@ -2092,13 +2248,15 @@ function App() {
 async function init() {
   try {
     const [{ data: equipe }, { data: cfg }] = await Promise.all([
-      sb.from('equipe').select('nome, ativo').order('ordem'),
+      sb.from('equipe').select('nome, ativo, email').order('ordem'),
       sb.from('config').select('chave, valor'),
     ]);
     if (equipe && equipe.length > 0) {
-      window.TEAM         = equipe.map(r => r.nome);
-      window.TEAM_ATIVOS  = equipe.filter(r => r.ativo).map(r => r.nome);
+      window.TEAM          = equipe.map(r => r.nome);
+      window.TEAM_ATIVOS   = equipe.filter(r => r.ativo).map(r => r.nome);
       window.TEAM_INATIVOS = equipe.filter(r => !r.ativo).map(r => r.nome);
+      window.__TEAM_EMAILS__ = {};
+      equipe.forEach(r => { if (r.email) window.__TEAM_EMAILS__[r.nome] = r.email; });
     }
     (cfg || []).forEach(r => {
       if (r.chave === 'apps_script_notify_url' && r.valor) window.__NOTIFY_URL__ = r.valor;
