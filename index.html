@@ -1311,13 +1311,18 @@ function QueueView({ items, currentUser, onUpdate, onDelete, toast, initialOpenI
     return [...set].sort();
   }, [items]);
 
-  const filtered = useMemo(() => items.filter((it) =>
-    (!fStatus || it.status === fStatus) &&
-    (!fCanal || it.canal === fCanal) &&
-    (!fAprov || it.aprovador === fAprov) &&
-    (!fAutor || it.autor === fAutor) &&
-    (!q || (it.titulo + " " + it.conteudo + " " + it.id + " " + it.autor).toLowerCase().includes(q.toLowerCase()))
-  ), [items, fStatus, fCanal, fAprov, fAutor, q]);
+  const externaAtiva = (it) => it.precisaExterna && it.statusExterno !== "Aprovado";
+
+  const filtered = useMemo(() => items.filter((it) => {
+    const matchStatus = !fStatus ||
+      it.status === fStatus ||
+      (fStatus === "Aguardando aprovação externa" && externaAtiva(it));
+    return matchStatus &&
+      (!fCanal || it.canal === fCanal) &&
+      (!fAprov || it.aprovador === fAprov) &&
+      (!fAutor || it.autor === fAutor) &&
+      (!q || (it.titulo + " " + it.conteudo + " " + it.id + " " + it.autor).toLowerCase().includes(q.toLowerCase()));
+  }), [items, fStatus, fCanal, fAprov, fAutor, q]);
 
   useEffect_(() => {
     if (!initialOpenId) return;
@@ -1327,7 +1332,10 @@ function QueueView({ items, currentUser, onUpdate, onDelete, toast, initialOpenI
 
   const counts = useMemo(() => {
     const c = {}; STATUS_ORDER.forEach((s) => c[s] = 0);
-    items.forEach((it) => c[it.status]++);
+    items.forEach((it) => {
+      c[it.status]++;
+      if (externaAtiva(it) && it.status !== "Aguardando aprovação externa") c["Aguardando aprovação externa"]++;
+    });
     return c;
   }, [items]);
 
