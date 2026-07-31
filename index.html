@@ -1280,6 +1280,7 @@ function QueueItem({ item, currentUser, onUpdate, onDelete, toast, open, onToggl
           <span className="qitem-top">
             <span className="qitem-id">{item.id}</span>
             <Chip icon={ch.icon}>{item.canal}</Chip>
+            {item.dataEnvio && <span style={{fontSize:12,color:"var(--ink-3)",fontWeight:400}}>Enviado em {fmtDate(item.dataEnvio)}</span>}
           </span>
           <span className="qitem-title">{item.titulo}</span>
         </span>
