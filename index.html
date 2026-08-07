@@ -1122,6 +1122,20 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
   const [editing, setEditing] = useS(false);
   const [confirmDel, setConfirmDel] = useS(false);
   const [confirmAprov, setConfirmAprov] = useS(false);
+  const [editingComment, setEditingComment] = useS(null); // null | "principal" | "secundario" | "externo"
+  const [editCommentDraft, setEditCommentDraft] = useS("");
+
+  function saveComment(field) {
+    const map = { principal: "comentarios", secundario: "comentarioSecundario", externo: "comentarioExterno" };
+    onUpdate(item.id, { [map[field]]: editCommentDraft.trim() });
+    toast("Comentário atualizado.", "success");
+    setEditingComment(null);
+  }
+
+  function startEditComment(field, current) {
+    setEditCommentDraft(current || "");
+    setEditingComment(field);
+  }
 
   function marcarAprovado() {
     onUpdate(item.id, { status: "Aprovado", dataDecisao: nowStr() });
@@ -1189,8 +1203,23 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
         <div className={"comment-block" + (item.parecerSecundario === "Com ressalvas" ? " is-warn" : "")}>
           <span className="block-label">
             <Avatar name={item.aprovadorSecundario} size={18} /> Parecer de {item.aprovadorSecundario} (secundário): <strong>{item.parecerSecundario}</strong>
+            {isSecondary && editingComment !== "secundario" && (
+              <button className="cc-note-x" title="Editar comentário" style={{marginLeft:"auto"}} onClick={() => startEditComment("secundario", item.comentarioSecundario)}>
+                <Icon name="pencil" size={13} />
+              </button>
+            )}
           </span>
-          {item.comentarioSecundario && <p>{item.comentarioSecundario}</p>}
+          {editingComment === "secundario" ? (
+            <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
+              <textarea className="input textarea" rows={3} value={editCommentDraft} onChange={e => setEditCommentDraft(e.target.value)} />
+              <div style={{display:"flex",gap:6}}>
+                <Button size="sm" variant="primary" icon="check2" disabled={!editCommentDraft.trim()} onClick={() => saveComment("secundario")}>Salvar</Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditingComment(null)}>Cancelar</Button>
+              </div>
+            </div>
+          ) : (
+            item.comentarioSecundario && <p>{item.comentarioSecundario}</p>
+          )}
         </div>
       )}
 
@@ -1199,8 +1228,23 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
           <span className="block-label">
             <Avatar name={item.aprovador} size={18} /> Comentário de {item.aprovador}
             {item.dataDecisao && <span className="comment-date">· {fmtDate(item.dataDecisao)}</span>}
+            {isApprover && editingComment !== "principal" && (
+              <button className="cc-note-x" title="Editar comentário" style={{marginLeft:"auto"}} onClick={() => startEditComment("principal", item.comentarios)}>
+                <Icon name="pencil" size={13} />
+              </button>
+            )}
           </span>
-          <p>{item.comentarios}</p>
+          {editingComment === "principal" ? (
+            <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
+              <textarea className="input textarea" rows={3} value={editCommentDraft} onChange={e => setEditCommentDraft(e.target.value)} />
+              <div style={{display:"flex",gap:6}}>
+                <Button size="sm" variant="primary" icon="check2" disabled={!editCommentDraft.trim()} onClick={() => saveComment("principal")}>Salvar</Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditingComment(null)}>Cancelar</Button>
+              </div>
+            </div>
+          ) : (
+            <p>{item.comentarios}</p>
+          )}
         </div>
       )}
 
@@ -1214,8 +1258,23 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
             <Icon name="globe" size={14} /> Aprovação externa — {item.contatoExterno || "contato não informado"}
             {item.statusExterno ? ": " : ""}<strong>{item.statusExterno || "(após aprovação interna)"}</strong>
             {item.dataExterna && <span className="comment-date">· {fmtDate(item.dataExterna)}</span>}
+            {(isApprover || isAuthor) && item.comentarioExterno && editingComment !== "externo" && (
+              <button className="cc-note-x" title="Editar comentário externo" style={{marginLeft:"auto"}} onClick={() => startEditComment("externo", item.comentarioExterno)}>
+                <Icon name="pencil" size={13} />
+              </button>
+            )}
           </span>
-          {item.comentarioExterno && <p>{item.comentarioExterno}</p>}
+          {editingComment === "externo" ? (
+            <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
+              <textarea className="input textarea" rows={3} value={editCommentDraft} onChange={e => setEditCommentDraft(e.target.value)} />
+              <div style={{display:"flex",gap:6}}>
+                <Button size="sm" variant="primary" icon="check2" disabled={!editCommentDraft.trim()} onClick={() => saveComment("externo")}>Salvar</Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditingComment(null)}>Cancelar</Button>
+              </div>
+            </div>
+          ) : (
+            item.comentarioExterno && <p>{item.comentarioExterno}</p>
+          )}
         </div>
       )}
 
