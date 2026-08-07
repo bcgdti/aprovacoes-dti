@@ -1286,7 +1286,7 @@ function QueueItem({ item, currentUser, onUpdate, onDelete, toast, open, onToggl
         </span>
         <span className="qitem-side">
           <StatusBadge status={item.status} />
-          <span className="qitem-approver" title={"Aprovador: " + item.aprovador}><Avatar name={item.aprovador} size={26} /></span>
+          <span className="qitem-approver" title={"Enviado por: " + item.autor}><Avatar name={item.autor} size={26} /></span>
           <button className="qitem-link-btn" title="Copiar link direto" onClick={copyLink}>
             <Icon name="link" size={15} />
           </button>
