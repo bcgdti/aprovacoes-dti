@@ -908,6 +908,8 @@ function ExternalPanel({ item, onUpdate, toast }) {
 function DecisionPanel({ item, onUpdate, toast }) {
   const [mode, setMode] = useS(null); // null | "ajustes" | "aprovar"
   const [comment, setComment] = useS("");
+  const [images, setImages] = useS([]); // File[]
+  const [uploading, setUploading] = useS(false);
 
   function approve() {
     const externaOk = !item.precisaExterna || item.statusExterno === "Aprovado";
@@ -919,19 +921,81 @@ function DecisionPanel({ item, onUpdate, toast }) {
       toast("Conteúdo aprovado.", "success");
     }
   }
-  function requestChanges() {
+
+  async function requestChanges() {
     if (!comment.trim()) return;
-    onUpdate(item.id, { status: "Ajustes solicitados", comentarios: comment.trim(), dataDecisao: now() });
+    setUploading(true);
+    let urls = [];
+    try {
+      for (const file of images) {
+        const ext = file.name.split('.').pop();
+        const path = `${item.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await sb.storage.from('imagens-ajuste').upload(path, file, { upsert: true });
+        if (error) throw error;
+        const { data: pd } = sb.storage.from('imagens-ajuste').getPublicUrl(path);
+        urls.push(pd.publicUrl);
+      }
+    } catch (e) {
+      toast("Erro ao enviar imagem: " + e.message, "error");
+      setUploading(false);
+      return;
+    }
+    onUpdate(item.id, {
+      status: "Ajustes solicitados",
+      comentarios: comment.trim(),
+      dataDecisao: now(),
+      imagensAjuste: urls,
+    });
     toast("Ajustes solicitados ao autor.", "info");
+    setUploading(false);
   }
+
+  function onFileChange(e) {
+    const files = Array.from(e.target.files || []);
+    const total = images.length + files.length;
+    if (total > 5) { toast("Máximo de 5 imagens.", "error"); return; }
+    setImages(prev => [...prev, ...files].slice(0, 5));
+    e.target.value = "";
+  }
+
+  function removeImage(i) { setImages(prev => prev.filter((_, idx) => idx !== i)); }
 
   return (
     <div className="action-block decision">
       <div className="action-head"><Icon name="thumbUp" size={16} /><strong>Sua decisão</strong></div>
       {mode === "ajustes" && (
-        <textarea className="input textarea" rows={3} value={comment} autoFocus
-          onChange={(e) => setComment(e.target.value)}
-          placeholder="Descreva os ajustes necessários (obrigatório)." />
+        <>
+          <textarea className="input textarea" rows={3} value={comment} autoFocus
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Descreva os ajustes necessários (obrigatório)." />
+          <div style={{marginTop:8}}>
+            <div style={{fontSize:12.5,color:"var(--ink-3)",marginBottom:6,fontWeight:500}}>
+              Imagens de referência <span style={{fontWeight:400}}>({images.length}/5, opcional)</span>
+            </div>
+            {images.length < 5 && (
+              <label style={{display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:13,
+                color:"var(--accent)",fontWeight:600,padding:"5px 10px",border:"1.5px dashed var(--accent)",
+                borderRadius:8,background:"var(--accent-soft)"}}>
+                <Icon name="image" size={15} /> Adicionar imagem
+                <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={onFileChange} />
+              </label>
+            )}
+            {images.length > 0 && (
+              <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:8}}>
+                {images.map((f, i) => (
+                  <div key={i} style={{position:"relative",width:72,height:72}}>
+                    <img src={URL.createObjectURL(f)} alt={f.name}
+                      style={{width:72,height:72,objectFit:"cover",borderRadius:8,border:"1px solid var(--line-2)"}} />
+                    <button onClick={() => removeImage(i)}
+                      style={{position:"absolute",top:-6,right:-6,width:18,height:18,borderRadius:"50%",
+                        border:"none",background:"#D9501E",color:"#fff",cursor:"pointer",
+                        fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
       {mode === "aprovar" && (
         <textarea className="input textarea" rows={2} value={comment}
@@ -941,14 +1005,16 @@ function DecisionPanel({ item, onUpdate, toast }) {
       <div className="action-row">
         {mode === null && (
           <>
-            <Button variant="danger-soft" icon="edit" onClick={() => { setMode("ajustes"); setComment(""); }}>Solicitar ajustes</Button>
+            <Button variant="danger-soft" icon="edit" onClick={() => { setMode("ajustes"); setComment(""); setImages([]); }}>Solicitar ajustes</Button>
             <Button variant="success" icon="check2" onClick={() => { setMode("aprovar"); setComment(""); }}>Aprovar</Button>
           </>
         )}
         {mode === "ajustes" && (
           <>
             <Button variant="ghost" size="sm" onClick={() => setMode(null)}>Voltar</Button>
-            <Button variant="danger" icon="edit" disabled={!comment.trim()} onClick={requestChanges}>Confirmar ajustes</Button>
+            <Button variant="danger" icon="edit" disabled={!comment.trim() || uploading} onClick={requestChanges}>
+              {uploading ? "Enviando..." : "Confirmar ajustes"}
+            </Button>
           </>
         )}
         {mode === "aprovar" && (
@@ -1246,6 +1312,17 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
             </div>
           ) : (
             <p>{item.comentarios}</p>
+          )}
+          {item.imagensAjuste && item.imagensAjuste.length > 0 && (
+            <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:8}}>
+              {item.imagensAjuste.map((url, i) => (
+                <a key={i} href={url} target="_blank" rel="noreferrer">
+                  <img src={url} alt={"Referência " + (i+1)}
+                    style={{width:80,height:80,objectFit:"cover",borderRadius:8,
+                      border:"1px solid var(--line-2)",cursor:"pointer"}} />
+                </a>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -1939,6 +2016,7 @@ function fromDb(r) {
     comentarioExterno: r.comentario_externo || '',
     dataExterna: r.data_externa || '',
     historicoAjustes: Array.isArray(r.historico_ajustes) ? r.historico_ajustes : [],
+    imagensAjuste: Array.isArray(r.imagens_ajuste) ? r.imagens_ajuste : [],
   };
 }
 
@@ -1962,6 +2040,7 @@ function toDb(it) {
     comentario_externo: it.comentarioExterno || '',
     data_externa: it.dataExterna || '',
     historico_ajustes: it.historicoAjustes || [],
+    imagens_ajuste: it.imagensAjuste || [],
   };
 }
 
@@ -1974,6 +2053,7 @@ const _PM = {
   precisaExterna:'precisa_externa', contatoExterno:'contato_externo',
   statusExterno:'status_externo', comentarioExterno:'comentario_externo',
   dataExterna:'data_externa', historicoAjustes:'historico_ajustes',
+  imagensAjuste:'imagens_ajuste',
 };
 function patchToDb(patch) {
   const out = {};
