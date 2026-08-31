@@ -2400,6 +2400,37 @@ function App() {
 }
 
 // ── Inicialização: carrega equipe e config do Supabase, depois renderiza ──
+const SENHA_TEMP = "bebaagua#123";
+const SENHA_KEY  = "dti_auth_ok";
+
+function LoginScreen({ onAuth }) {
+  const [val, setVal] = React.useState("");
+  const [erro, setErro] = React.useState(false);
+  function tentar() {
+    if (val === SENHA_TEMP) { sessionStorage.setItem(SENHA_KEY, "1"); onAuth(); }
+    else { setErro(true); setVal(""); }
+  }
+  return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--surface-1)"}}>
+      <div style={{background:"var(--surface-0)",border:"1px solid var(--line-2)",borderRadius:16,padding:"40px 36px",width:340,boxShadow:"0 4px 24px rgba(0,0,0,.08)"}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{fontSize:32,marginBottom:8}}>🔒</div>
+          <div style={{fontWeight:700,fontSize:20,color:"var(--ink-1)"}}>Sistema de Aprovações</div>
+          <div style={{fontSize:13.5,color:"var(--ink-3)",marginTop:4}}>dti digital</div>
+        </div>
+        <label style={{fontSize:13,fontWeight:600,color:"var(--ink-2)",display:"block",marginBottom:6}}>Senha de acesso</label>
+        <input className="input" type="password" value={val} autoFocus
+          placeholder="Digite a senha"
+          onChange={e => { setVal(e.target.value); setErro(false); }}
+          onKeyDown={e => e.key === "Enter" && tentar()}
+          style={{width:"100%",marginBottom:8,boxSizing:"border-box"}} />
+        {erro && <div style={{color:"#D9501E",fontSize:13,marginBottom:8}}>Senha incorreta. Tente novamente.</div>}
+        <Button variant="primary" style={{width:"100%"}} onClick={tentar}>Entrar</Button>
+      </div>
+    </div>
+  );
+}
+
 async function init() {
   try {
     const [{ data: equipe }, { data: cfg }] = await Promise.all([
@@ -2422,7 +2453,13 @@ async function init() {
       }
     });
   } catch {}
-  ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  const already = sessionStorage.getItem(SENHA_KEY) === "1";
+  const root = ReactDOM.createRoot(document.getElementById("root"));
+  if (already) {
+    root.render(<App />);
+  } else {
+    root.render(<LoginScreen onAuth={() => root.render(<App />)} />);
+  }
 }
 
 init();
