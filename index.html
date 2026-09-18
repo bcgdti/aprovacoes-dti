@@ -909,6 +909,7 @@ function DecisionPanel({ item, onUpdate, toast }) {
   const [mode, setMode] = useS(null); // null | "ajustes" | "aprovar"
   const [comment, setComment] = useS("");
   const [images, setImages] = useS([]); // File[]
+  const [docs, setDocs] = useS([]); // File[]
   const [uploading, setUploading] = useS(false);
 
   function approve() {
@@ -926,6 +927,7 @@ function DecisionPanel({ item, onUpdate, toast }) {
     if (!comment.trim()) return;
     setUploading(true);
     let urls = [];
+    let anexos = [];
     try {
       for (const file of images) {
         const ext = file.name.split('.').pop();
@@ -935,8 +937,16 @@ function DecisionPanel({ item, onUpdate, toast }) {
         const { data: pd } = sb.storage.from('imagens-ajuste').getPublicUrl(path);
         urls.push(pd.publicUrl);
       }
+      for (const file of docs) {
+        const ext = file.name.split('.').pop();
+        const path = `${item.id}/docs/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await sb.storage.from('imagens-ajuste').upload(path, file, { upsert: true });
+        if (error) throw error;
+        const { data: pd } = sb.storage.from('imagens-ajuste').getPublicUrl(path);
+        anexos.push({ nome: file.name, url: pd.publicUrl });
+      }
     } catch (e) {
-      toast("Erro ao enviar imagem: " + e.message, "error");
+      toast("Erro ao enviar arquivo: " + e.message, "error");
       setUploading(false);
       return;
     }
@@ -945,6 +955,7 @@ function DecisionPanel({ item, onUpdate, toast }) {
       comentarios: comment.trim(),
       dataDecisao: now(),
       imagensAjuste: urls,
+      anexosAprovacao: anexos,
     });
     toast("Ajustes solicitados ao autor.", "info");
     setUploading(false);
@@ -959,6 +970,16 @@ function DecisionPanel({ item, onUpdate, toast }) {
   }
 
   function removeImage(i) { setImages(prev => prev.filter((_, idx) => idx !== i)); }
+
+  function onDocChange(e) {
+    const files = Array.from(e.target.files || []);
+    const total = docs.length + files.length;
+    if (total > 3) { toast("Máximo de 3 arquivos.", "error"); return; }
+    setDocs(prev => [...prev, ...files].slice(0, 3));
+    e.target.value = "";
+  }
+
+  function removeDoc(i) { setDocs(prev => prev.filter((_, idx) => idx !== i)); }
 
   return (
     <div className="action-block decision">
@@ -990,6 +1011,33 @@ function DecisionPanel({ item, onUpdate, toast }) {
                       style={{position:"absolute",top:-6,right:-6,width:18,height:18,borderRadius:"50%",
                         border:"none",background:"#D9501E",color:"#fff",cursor:"pointer",
                         fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div style={{marginTop:12}}>
+            <div style={{fontSize:12.5,color:"var(--ink-3)",marginBottom:6,fontWeight:500}}>
+              Documentos de referência <span style={{fontWeight:400}}>({docs.length}/3, .doc .docx .txt, opcional)</span>
+            </div>
+            {docs.length < 3 && (
+              <label style={{display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:13,
+                color:"var(--ink-2)",fontWeight:600,padding:"5px 10px",border:"1.5px dashed var(--line)",
+                borderRadius:8,background:"var(--surface-2)"}}>
+                <Icon name="attachment" size={15} /> Adicionar arquivo
+                <input type="file" accept=".doc,.docx,.txt,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple style={{display:"none"}} onChange={onDocChange} />
+              </label>
+            )}
+            {docs.length > 0 && (
+              <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:8}}>
+                {docs.map((f, i) => (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",
+                    background:"var(--surface-2)",border:"1px solid var(--line-2)",borderRadius:8}}>
+                    <Icon name="file" size={14} />
+                    <span style={{fontSize:13,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
+                    <button onClick={() => removeDoc(i)}
+                      style={{border:"none",background:"none",cursor:"pointer",color:"var(--ink-3)",
+                        fontSize:14,padding:"0 2px",lineHeight:1}}>✕</button>
                   </div>
                 ))}
               </div>
@@ -1320,6 +1368,21 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
                   <img src={url} alt={"Referência " + (i+1)}
                     style={{width:80,height:80,objectFit:"cover",borderRadius:8,
                       border:"1px solid var(--line-2)",cursor:"pointer"}} />
+                </a>
+              ))}
+            </div>
+          )}
+          {item.anexosAprovacao && item.anexosAprovacao.length > 0 && (
+            <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:8}}>
+              {item.anexosAprovacao.map((a, i) => (
+                <a key={i} href={a.url} target="_blank" rel="noreferrer"
+                  style={{display:"inline-flex",alignItems:"center",gap:7,padding:"6px 12px",
+                    background:"var(--surface-2)",border:"1px solid var(--line-2)",borderRadius:8,
+                    color:"var(--accent)",fontSize:13,fontWeight:500,textDecoration:"none",
+                    width:"fit-content",maxWidth:"100%"}}>
+                  <Icon name="file" size={14} />
+                  <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.nome}</span>
+                  <Icon name="externalLink" size={12} />
                 </a>
               ))}
             </div>
@@ -2017,6 +2080,7 @@ function fromDb(r) {
     dataExterna: r.data_externa || '',
     historicoAjustes: Array.isArray(r.historico_ajustes) ? r.historico_ajustes : [],
     imagensAjuste: Array.isArray(r.imagens_ajuste) ? r.imagens_ajuste : [],
+    anexosAprovacao: Array.isArray(r.anexos_aprovacao) ? r.anexos_aprovacao : [],
   };
 }
 
@@ -2041,6 +2105,7 @@ function toDb(it) {
     data_externa: it.dataExterna || '',
     historico_ajustes: it.historicoAjustes || [],
     imagens_ajuste: it.imagensAjuste || [],
+    anexos_aprovacao: it.anexosAprovacao || [],
   };
 }
 
@@ -2054,6 +2119,7 @@ const _PM = {
   statusExterno:'status_externo', comentarioExterno:'comentario_externo',
   dataExterna:'data_externa', historicoAjustes:'historico_ajustes',
   imagensAjuste:'imagens_ajuste',
+  anexosAprovacao:'anexos_aprovacao',
 };
 function patchToDb(patch) {
   const out = {};
