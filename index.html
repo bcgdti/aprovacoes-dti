@@ -1433,6 +1433,9 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
       {item.status === "Aguardando aprovação" && isSecondary && item.parecerSecundario && !isApprover && (
         <div className="info-line ok"><Icon name="check2" size={15} /> Seu parecer foi registrado. Decisão final com {item.aprovador}.</div>
       )}
+      {item.status === "Aprovado" && isSecondary && (
+        <SecondaryPanel item={item} onUpdate={onUpdate} onDelete={onDelete} toast={toast} />
+      )}
       {item.status === "Aguardando aprovação externa" && (
         <div className="info-line"><Icon name="clock" size={15} /> Aprovado internamente — aguardando retorno externo.</div>
       )}
