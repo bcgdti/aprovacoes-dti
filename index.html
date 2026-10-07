@@ -918,7 +918,7 @@ async function syncNotion(item) {
   if (!notionNum) return;
 
   const dbId = "29d6a5bf5ce480be951cc0f6d766c5f8";
-  const cardUrl = `https://aprovacoes-dti.pages.dev/#${item.id}`;
+  const cardUrl = `https://aprovacoes-dti.pages.dev/?id=${item.id}`;
   const tipo = item.tipoAprovacao || "Ambos";
 
   // Busca a página pelo campo "ID" (number) no banco do Notion
