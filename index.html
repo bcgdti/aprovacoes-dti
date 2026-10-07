@@ -1301,8 +1301,24 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
   const [editing, setEditing] = useS(false);
   const [confirmDel, setConfirmDel] = useS(false);
   const [confirmAprov, setConfirmAprov] = useS(false);
-  const [editingComment, setEditingComment] = useS(null); // null | "principal" | "secundario" | "externo"
+  const [editingComment, setEditingComment] = useS(null);
   const [editCommentDraft, setEditCommentDraft] = useS("");
+  const [notionIdDraft, setNotionIdDraft] = useS(item.notionId || "");
+  const [savingNotion, setSavingNotion] = useS(false);
+
+  async function saveNotionId() {
+    if (savingNotion) return;
+    setSavingNotion(true);
+    onUpdate(item.id, { notionId: notionIdDraft });
+    const updated = { ...item, notionId: notionIdDraft };
+    try {
+      await syncNotionUrl(updated);
+      toast("ID do Notion salvo e link atualizado no calendário.", "success");
+    } catch (e) {
+      toast("ID salvo, mas erro ao atualizar Notion: " + (e.message || e), "error");
+    }
+    setSavingNotion(false);
+  }
 
   function saveComment(field) {
     const map = { principal: "comentarios", secundario: "comentarioSecundario", externo: "comentarioExterno" };
@@ -1337,6 +1353,22 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
           {item.dataPostagem ? " · " + fmtDate(item.dataPostagem) : ""}
         </Meta>
       </div>
+
+      {(isAuthor || isApprover) && (
+        <div style={{display:"flex",alignItems:"center",gap:8,margin:"12px 0",flexWrap:"wrap"}}>
+          <span style={{fontSize:12.5,color:"var(--ink-3)",fontWeight:500,whiteSpace:"nowrap"}}>ID Notion:</span>
+          <input
+            className="input"
+            style={{flex:1,minWidth:120,maxWidth:200,padding:"4px 8px",fontSize:13}}
+            value={notionIdDraft}
+            onChange={e => setNotionIdDraft(e.target.value)}
+            placeholder="Ex.: RS-42 ou 42"
+          />
+          <Button size="sm" variant="ghost" icon="check" disabled={savingNotion || notionIdDraft === (item.notionId || "")} onClick={saveNotionId}>
+            {savingNotion ? "Salvando…" : "Salvar"}
+          </Button>
+        </div>
+      )}
 
       <CommentableContent item={item} currentUser={currentUser} onUpdate={onUpdate} versao="original" />
       {item.versaoCorrigida && (
