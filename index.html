@@ -1312,8 +1312,12 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
     onUpdate(item.id, { notionId: notionIdDraft });
     const updated = { ...item, notionId: notionIdDraft };
     try {
-      await syncNotionUrl(updated);
-      toast("ID do Notion salvo e link atualizado no calendário.", "success");
+      if (item.status === "Aprovado") {
+        await syncNotion(updated);
+      } else {
+        await syncNotionUrl(updated);
+      }
+      toast("ID do Notion salvo e calendário atualizado.", "success");
     } catch (e) {
       toast("ID salvo, mas erro ao atualizar Notion: " + (e.message || e), "error");
     }
