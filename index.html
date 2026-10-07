@@ -2384,6 +2384,23 @@ function App() {
         parecerSecundario: '', comentarioSecundario: '',
         statusExterno: '', comentarioExterno: '', dataExterna: '',
       };
+      // Aviso de conflito de Notion ID
+      if (item.notionId && items) {
+        const nid = String(item.notionId).replace(/\D/g, '');
+        const cobreTexto = t => t === "Texto" || t === "Ambos";
+        const cobreArte  = t => t === "Arte"  || t === "Ambos";
+        const conflito = items.find(it =>
+          it.notionId && String(it.notionId).replace(/\D/g, '') === nid &&
+          ((cobreTexto(item.tipoAprovacao) && cobreTexto(it.tipoAprovacao)) ||
+           (cobreArte(item.tipoAprovacao)  && cobreArte(it.tipoAprovacao)))
+        );
+        if (conflito) {
+          showToast(`Atenção: o ID ${item.notionId} já está vinculado ao card ${conflito.id} (${conflito.tipoAprovacao}). Verifique antes de prosseguir.`, "error");
+          setSaving(false);
+          return;
+        }
+      }
+
       const { error } = await sb.from('conteudos').insert(toDb(item));
       if (error) throw error;
       setItems(arr => [item, ...(arr || [])]);
