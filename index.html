@@ -1577,8 +1577,12 @@ function QueueView({ items, currentUser, onUpdate, onDelete, toast, initialOpenI
 
   useEffect_(() => {
     if (!initialOpenId) return;
-    const el = document.querySelector(`[data-qitem-id="${initialOpenId}"]`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (filtered.length === 0) return;
+    setOpenId(initialOpenId);
+    setTimeout(() => {
+      const el = document.querySelector(`[data-qitem-id="${initialOpenId}"]`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   }, [initialOpenId, filtered.length]);
 
   const counts = useMemo(() => {
