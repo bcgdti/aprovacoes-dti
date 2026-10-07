@@ -2389,7 +2389,7 @@ function App() {
       setItems(arr => [item, ...(arr || [])]);
       showToast(`Conteúdo ${id} enviado para a fila.`, "success");
       notifyTeams('Novo conteúdo enviado', item);
-      syncNotionUrl(item).catch(() => {});
+      syncNotionUrl(item).catch((e) => showToast("Notion: " + (e.message || e), "error"));
       setRoute("fila");
     } catch (e) {
       showToast("Erro ao enviar: " + (e.message || e), "error");
