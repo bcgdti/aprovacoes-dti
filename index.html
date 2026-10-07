@@ -743,7 +743,7 @@ function SubmitView({ currentUser, onCreate, toast }) {
             <input className="input" type="date" value={form.dataPostagem}
               onChange={(e) => set("dataPostagem")(e.target.value)} />
           </Field>
-          <Field label="ID no Calendário Notion" hint="Opcional — número do card no calendário (ex.: 42)">
+          <Field label="ID no Calendário Notion" hint="Opcional — só o número, sem o RS (ex.: se o card é RS-42, digite 42)">
             <input className="input" type="number" min="1" value={form.notionId}
               onChange={(e) => set("notionId")(e.target.value)}
               placeholder="Ex.: 42" />
@@ -915,7 +915,7 @@ async function syncNotion(item) {
   const token = window.__NOTION_TOKEN__;
   if (!token || !item.notionId) return;
 
-  const dbId = "29d6a5bf5ce48117aa79000b1b64503c";
+  const dbId = "29d6a5bf5ce480be951cc0f6d766c5f8";
   const cardUrl = `https://aprovacoes-dti.pages.dev/#${item.id}`;
   const tipo = item.tipoAprovacao || "Ambos";
 
@@ -931,11 +931,11 @@ async function syncNotion(item) {
 
   const props = {};
   if (tipo === "Texto" || tipo === "Ambos") {
-    props["Status Texto"] = { select: { name: "Roteiro e/ou legenda aprovados" } };
+    props["Status Texto"] = { status: { name: "Roteiro e/ou legenda aprovados" } };
     props["Texto"] = { url: cardUrl };
   }
   if (tipo === "Arte" || tipo === "Ambos") {
-    props["Status Imagem/Vídeo"] = { select: { name: "Aprovado" } };
+    props["Status Imagem/Vídeo"] = { status: { name: "Aprovado" } };
     props["Arte"] = { url: cardUrl };
   }
 
