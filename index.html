@@ -743,10 +743,10 @@ function SubmitView({ currentUser, onCreate, toast }) {
             <input className="input" type="date" value={form.dataPostagem}
               onChange={(e) => set("dataPostagem")(e.target.value)} />
           </Field>
-          <Field label="ID no Calendário Notion" hint="Opcional — só o número, sem o RS (ex.: se o card é RS-42, digite 42)">
-            <input className="input" type="number" min="1" value={form.notionId}
+          <Field label="ID no Calendário Notion" hint="Opcional — pode colar direto do Notion (ex.: RS-42) ou só o número (ex.: 42)">
+            <input className="input" type="text" value={form.notionId}
               onChange={(e) => set("notionId")(e.target.value)}
-              placeholder="Ex.: 42" />
+              placeholder="Ex.: RS-42 ou 42" />
           </Field>
         </div>
 
@@ -914,6 +914,8 @@ function ExternalPanel({ item, onUpdate, toast }) {
 async function syncNotion(item) {
   const token = window.__NOTION_TOKEN__;
   if (!token || !item.notionId) return;
+  const notionNum = parseInt(String(item.notionId).replace(/\D/g, ''), 10);
+  if (!notionNum) return;
 
   const dbId = "29d6a5bf5ce480be951cc0f6d766c5f8";
   const cardUrl = `https://aprovacoes-dti.pages.dev/#${item.id}`;
@@ -923,7 +925,7 @@ async function syncNotion(item) {
   const qRes = await fetch(`https://api.notion.com/v1/databases/${dbId}/query`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${token}`, "Notion-Version": "2022-06-28", "Content-Type": "application/json" },
-    body: JSON.stringify({ filter: { property: "ID", unique_id: { equals: Number(item.notionId) } } }),
+    body: JSON.stringify({ filter: { property: "ID", unique_id: { equals: notionNum } } }),
   });
   const qData = await qRes.json();
   const page = qData.results?.[0];
