@@ -2388,7 +2388,7 @@ function App() {
       if (error) throw error;
       setItems(arr => [item, ...(arr || [])]);
       showToast(`Conteúdo ${id} enviado para a fila.`, "success");
-      notifyTeams('Novo conteúdo enviado', item);
+      if (!/^testes?$/i.test(item.titulo.trim())) notifyTeams('Novo conteúdo enviado', item);
       syncNotionUrl(item).catch((e) => showToast("Notion: " + (e.message || e), "error"));
       setRoute("fila");
     } catch (e) {
