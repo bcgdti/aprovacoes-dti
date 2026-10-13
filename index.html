@@ -960,7 +960,7 @@ async function syncNotion(item) {
     props["Texto"] = { url: cardUrl };
   }
   if (tipo === "Arte" || tipo === "Ambos") {
-    props["Status Imagem/Vídeo"] = { status: { name: "Aprovado" } };
+    props["Status Imagem/Vídeo"] = { status: { name: "Arte aprovada" } };
     props["Arte"] = { url: cardUrl };
   }
   await _notionPatch(token, page.id, props);
