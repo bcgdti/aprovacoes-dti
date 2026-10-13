@@ -1368,7 +1368,7 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
             onChange={e => setNotionIdDraft(e.target.value)}
             placeholder="Ex.: RS-42 ou 42"
           />
-          <Button size="sm" variant="ghost" icon="check" disabled={savingNotion || notionIdDraft === (item.notionId || "")} onClick={saveNotionId}>
+          <Button size="sm" variant="ghost" icon="check" disabled={savingNotion} onClick={saveNotionId}>
             {savingNotion ? "Salvando…" : "Salvar"}
           </Button>
         </div>
