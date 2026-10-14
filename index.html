@@ -587,7 +587,7 @@ function Toast({ toast }) {
   return (
     <div className={"toast toast-" + (toast.kind || "info")} key={toast.id}>
       <Icon name={toast.kind === "error" ? "x" : "check2"} size={16} />
-      <span>{toast.msg}</span>
+      <span>{typeof toast.msg === "string" ? toast.msg : toast.msg}</span>
     </div>
   );
 }
@@ -2452,7 +2452,12 @@ function App() {
            (cobreArte(item.tipoAprovacao)  && cobreArte(it.tipoAprovacao)))
         );
         if (conflito) {
-          showToast(`⚠️ ID ${item.notionId} já vinculado ao card ${conflito.id} (${conflito.tipoAprovacao}). O link anterior no Notion será preservado como comentário.`, "info");
+          const conflitoUrl = `https://aprovacoes-dti.pages.dev/?id=${conflito.id}`;
+          showToast(React.createElement("span", null,
+            `⚠️ ID ${item.notionId} já vinculado ao `,
+            React.createElement("a", { href: conflitoUrl, target: "_blank", rel: "noopener noreferrer", style: { color: "inherit", fontWeight: 700, textDecoration: "underline" } }, conflito.id),
+            ` (${conflito.tipoAprovacao}). O link anterior no Notion será preservado como comentário.`
+          ), "info");
         }
       }
 
