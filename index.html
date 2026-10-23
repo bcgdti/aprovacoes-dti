@@ -81,6 +81,8 @@ a{ color:var(--accent); }
   display:flex; align-items:center; justify-content:center; padding:0 5px;
 }
 .nav-top .nav-badge{ margin-left:4px; }
+.nav-badge + .nav-badge{ margin-left:4px; }
+.nav-badge.is-secondary{ background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent); }
 .sidebar-foot{ border-top:1px solid var(--line); padding-top:14px; margin-top:8px; }
 
 /* ───── User picker ───── */
@@ -2502,6 +2504,7 @@ function App() {
   const isAdmin   = cfEmail && ADMIN_EMAILS.includes(cfEmail);
 
   const pendingForMe = (items || []).filter(it => it.aprovador === user && it.status === "Aguardando aprovação").length;
+  const secondaryForMe = (items || []).filter(it => it.aprovadorSecundario === user && it.status === "Aguardando aprovação" && !it.parecerSecundario).length;
   const adjustForMe  = (items || []).filter(it => it.autor === user && it.status === "Ajustes solicitados").length;
 
   const Brand = (
@@ -2562,7 +2565,8 @@ function App() {
       onClick={() => setRoute(n.id)}>
       <Icon name={n.icon} size={19} />
       <span>{n.label}</span>
-      {n.id === "aprovador" && pendingForMe > 0 && <span className="nav-badge">{pendingForMe}</span>}
+      {n.id === "aprovador" && pendingForMe > 0 && <span className="nav-badge" title="Pendentes como aprovador principal">{pendingForMe}</span>}
+      {n.id === "aprovador" && secondaryForMe > 0 && <span className="nav-badge is-secondary" title="Pendentes para seu parecer (secundário)">{secondaryForMe}</span>}
       {n.id === "meus"      && adjustForMe  > 0 && <span className="nav-badge">{adjustForMe}</span>}
     </button>
   ));
