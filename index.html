@@ -845,6 +845,7 @@ function ExternalPanel({ item, onUpdate, toast }) {
     const patch = { statusExterno: "Aprovado", comentarioExterno: comment.trim(), dataExterna: now() };
     if (internaOk) { patch.status = "Aprovado"; patch.dataDecisao = now(); }
     onUpdate(item.id, patch);
+    if (internaOk) syncNotion(item).catch(() => {});
     toast(internaOk ? "Aprovação externa registrada. Conteúdo aprovado." : "Aprovação externa registrada.", "success");
     setMode(null);
   }
