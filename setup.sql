@@ -100,3 +100,24 @@ create policy "links_select" on links for select to anon using (true);
 create policy "links_insert" on links for insert to anon with check (true);
 create policy "links_update" on links for update to anon using (true) with check (true);
 create policy "links_delete" on links for delete to anon using (true);
+
+-- 8. Categorias dos links úteis (2026-10-27): nome, cor e ordem, geridas pela página.
+create table if not exists links_categorias (
+  id     bigint generated always as identity primary key,
+  nome   text not null unique,
+  cor    text default '#3038D5',
+  ordem  int  default 0
+);
+alter table links_categorias enable row level security;
+create policy "links_cat_select" on links_categorias for select to anon using (true);
+create policy "links_cat_insert" on links_categorias for insert to anon with check (true);
+create policy "links_cat_update" on links_categorias for update to anon using (true) with check (true);
+create policy "links_cat_delete" on links_categorias for delete to anon using (true);
+insert into links_categorias (nome, cor, ordem) values
+  ('Calendário e planejamento', '#3038D5', 0),
+  ('Marca e templates',         '#D94E0E', 1),
+  ('Ferramentas',               '#0D9FB5', 2),
+  ('Pastas e arquivos',         '#000050', 3),
+  ('Métricas e relatórios',     '#FF7800', 4),
+  ('Geral',                     '#6A290A', 5)
+on conflict (nome) do nothing;

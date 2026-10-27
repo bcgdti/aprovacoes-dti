@@ -100,13 +100,31 @@ a{ color:var(--accent); }
 .links-form{ margin-bottom:24px; }
 .links-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px; }
 .links-grid-full{ grid-column:1 / -1; }
-.link-card{ position:relative; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); box-shadow:var(--shadow); transition:.13s; }
-.link-card:hover{ border-color:color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.link-card{ position:relative; background:color-mix(in srgb, var(--cat, var(--accent)) 7%, var(--surface)); border:1px solid var(--line); border-left:5px solid var(--cat, var(--accent)); border-radius:var(--radius-sm); box-shadow:var(--shadow); transition:.13s; }
+.link-card:hover{ border-color:color-mix(in srgb, var(--cat, var(--accent)) 55%, var(--line)); border-left-color:var(--cat, var(--accent)); }
+.links-cat-h{ display:flex; align-items:center; gap:10px; }
+.links-cat-dot{ width:12px; height:12px; border-radius:50%; background:var(--cat, var(--accent)); box-shadow:0 0 0 1px rgba(1,11,12,.15); flex-shrink:0; }
+.links-head-acoes{ display:flex; gap:8px; flex-wrap:wrap; }
+.links-org{ margin-bottom:26px; }
+.links-org-lista{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:8px; }
+.links-org-item{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 10px; background:var(--surface); border:1px solid var(--line); border-left:5px solid var(--cat, var(--accent)); border-radius:var(--radius-sm); }
+.links-org-pos{ display:flex; flex-direction:column; }
+.links-org-pos .cc-note-x{ padding:1px 3px; }
+.links-org-nome{ flex:1 1 200px; min-width:0; padding:7px 10px; font-weight:600; }
+.links-org-cores{ display:flex; align-items:center; gap:5px; }
+.links-cor{ width:22px; height:22px; border-radius:50%; border:none; box-shadow:inset 0 0 0 1px rgba(1,11,12,.18); cursor:pointer; padding:0; }
+.links-cor.inicia-sec{ margin-left:10px; }
+.links-cor.is-active{ box-shadow:0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.links-cor:disabled{ cursor:not-allowed; opacity:.5; }
+.links-org-qtd{ font-size:12.5px; color:var(--ink-2); min-width:56px; text-align:right; }
+.links-org-nova{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.links-org-nova .input{ max-width:280px; }
+.cc-note-x:disabled{ opacity:.35; cursor:not-allowed; background:transparent; }
 .link-card-a{ display:flex; flex-direction:column; gap:4px; padding:14px 16px; color:var(--ink); text-decoration:none; min-height:100%; box-sizing:border-box; }
 .link-card-t{ display:flex; align-items:center; gap:6px; font-weight:700; font-size:15px; padding-right:52px; }
 .link-card-t svg{ color:var(--ink-3); flex-shrink:0; }
 .link-card-d{ font-size:13.5px; color:var(--ink-2); line-height:1.45; }
-.link-card-u{ font-size:12.5px; color:var(--accent); margin-top:auto; padding-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.link-card-u{ font-size:12.5px; color:var(--ink-2); margin-top:auto; padding-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .link-card-acoes{ position:absolute; top:8px; right:8px; display:flex; gap:2px; }
 .link-card-confirma{ display:flex; align-items:center; gap:6px; padding:0 12px 12px; font-size:13px; font-weight:600; color:#C1450F; }
 
@@ -2507,30 +2525,73 @@ function MyView({ items, currentUser, onUpdate, onDelete, toast }) {
 
 /* ════════════════════ LINKS ÚTEIS ════════════════════ */
 const CATEGORIAS_LINKS = ["Calendário e planejamento", "Marca e templates", "Ferramentas", "Pastas e arquivos", "Métricas e relatórios", "Geral"];
+// Cores das categorias: paleta oficial dti (Design System dti | WPP), principais e secundárias.
+const CORES_LINKS = [
+  { nome: "WPP Navy", cor: "#000050", grupo: "Principais" }, { nome: "Orange 800", cor: "#D94E0E", grupo: "Principais" },
+  { nome: "Orange 700", cor: "#FF7800", grupo: "Principais" },
+  { nome: "Azul Tela", cor: "#3038D5", grupo: "Secundárias" }, { nome: "Azul Lunar", cor: "#0D9FB5", grupo: "Secundárias" },
+  { nome: "Azul Elétrico", cor: "#40E6F2", grupo: "Secundárias" }, { nome: "Orange 900", cor: "#6A290A", grupo: "Secundárias" },
+  { nome: "Orange 600", cor: "#F9BD5D", grupo: "Secundárias" }, { nome: "Orange 500", cor: "#FFF5CD", grupo: "Secundárias" },
+];
+const COR_PADRAO = "#3038D5";
 const LINK_VAZIO = { titulo: "", url: "", descricao: "", categoria: "Geral" };
 
 function LinksView({ podeEditar, toast }) {
   const [links, setLinks] = useS(null);
+  const [cats, setCats] = useS([]);          // linhas de links_categorias
+  const [catsOk, setCatsOk] = useS(true);    // false se a tabela de categorias não existir
   const [erro, setErro] = useS("");
   const [busca, setBusca] = useS("");
   const [editando, setEditando] = useS(null); // null | "novo" | id
   const [draft, setDraft] = useS(LINK_VAZIO);
   const [excluindo, setExcluindo] = useS(null);
   const [salvando, setSalvando] = useS(false);
+  const [organizar, setOrganizar] = useS(false);
+  const [novaCat, setNovaCat] = useS("");
+  const [nomes, setNomes] = useS({});        // rascunho de nome por categoria (modo organizar)
 
   async function carregar() {
-    const { data, error } = await sb.from("links").select("*").order("categoria").order("ordem").order("id");
+    const [{ data, error }, rc] = await Promise.all([
+      sb.from("links").select("*").order("categoria").order("ordem").order("id"),
+      sb.from("links_categorias").select("*").order("ordem").order("id"),
+    ]);
     if (error) { setErro(error.message || String(error)); setLinks([]); return; }
     setErro(""); setLinks(data || []);
+    setCatsOk(!rc.error);
+    setCats(rc.error ? [] : (rc.data || []));
   }
   useEffect_(() => { carregar(); }, []);
 
+  // Categorias na ordem escolhida; as que só existem nos links (sem cadastro) vêm depois.
+  const ordenadas = (() => {
+    const base = [...cats].sort((a, b) => (a.ordem || 0) - (b.ordem || 0) || a.id - b.id).map(c => ({ ...c, cor: c.cor || COR_PADRAO }));
+    const nomesBase = new Set(base.map(c => c.nome));
+    const extras = [...new Set((links || []).map(l => l.categoria || "Geral"))]
+      .filter(n => !nomesBase.has(n))
+      .sort((a, b) => (CATEGORIAS_LINKS.indexOf(a) + 1 || 99) - (CATEGORIAS_LINKS.indexOf(b) + 1 || 99) || a.localeCompare(b))
+      .map(n => ({ id: null, nome: n, cor: COR_PADRAO, ordem: 999 }));
+    return [...base, ...extras];
+  })();
+  const corDe = (nome) => (ordenadas.find(c => c.nome === nome) || {}).cor || COR_PADRAO;
+  const linksDa = (nome, lista) => (lista || links || []).filter(l => (l.categoria || "Geral") === nome)
+    .sort((a, b) => (a.ordem || 0) - (b.ordem || 0) || a.id - b.id);
+
   const filtrados = (links || []).filter(l => !busca ||
     (l.titulo + " " + (l.descricao || "") + " " + l.url + " " + (l.categoria || "")).toLowerCase().includes(busca.toLowerCase()));
-  const categorias = [...new Set([...CATEGORIAS_LINKS.filter(c => filtrados.some(l => l.categoria === c)),
-    ...filtrados.map(l => l.categoria || "Geral")])];
   const dominio = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
   const set = (k) => (e) => setDraft(d => ({ ...d, [k]: e.target.value }));
+  const falhou = (res, msg) => { if (res && res.error) { toast(msg + ": " + res.error.message, "error"); return true; } return false; };
+
+  // Garante que a categoria exista na tabela (com cor e posição), criando no fim da lista se preciso.
+  async function garantirCategoria(nome, cor) {
+    if (!catsOk) return null;
+    const existente = cats.find(c => c.nome === nome);
+    if (existente) return existente;
+    const ordem = cats.reduce((m, c) => Math.max(m, c.ordem || 0), -1) + 1;
+    const res = await sb.from("links_categorias").insert({ nome, cor: cor || COR_PADRAO, ordem });
+    if (falhou(res, "Erro ao criar a categoria")) return null;
+    return { nome, cor: cor || COR_PADRAO, ordem };
+  }
 
   function abrir(link) {
     setEditando(link ? link.id : "novo");
@@ -2543,25 +2604,93 @@ function LinksView({ podeEditar, toast }) {
     const reg = { titulo: draft.titulo.trim(), url: /^https?:\/\//i.test(url) ? url : "https://" + url,
       descricao: draft.descricao.trim(), categoria: draft.categoria.trim() || "Geral" };
     setSalvando(true);
+    await garantirCategoria(reg.categoria);
     let res;
     if (editando === "novo") {
-      const ordem = (links || []).filter(l => l.categoria === reg.categoria).length;
-      res = await sb.from("links").insert({ ...reg, ordem });
+      res = await sb.from("links").insert({ ...reg, ordem: linksDa(reg.categoria).length });
     } else {
-      res = await sb.from("links").update(reg).eq("id", editando);
+      const atual = (links || []).find(l => l.id === editando);
+      const mudouCat = atual && (atual.categoria || "Geral") !== reg.categoria;
+      res = await sb.from("links").update(mudouCat ? { ...reg, ordem: linksDa(reg.categoria).length } : reg).eq("id", editando);
     }
     setSalvando(false);
-    if (res.error) { toast("Erro ao salvar o link: " + res.error.message, "error"); return; }
+    if (falhou(res, "Erro ao salvar o link")) return;
     toast(editando === "novo" ? "Link adicionado." : "Link atualizado.", "success");
     setEditando(null);
     carregar();
   }
 
   async function excluir(id) {
-    const { error } = await sb.from("links").delete().eq("id", id);
-    if (error) { toast("Erro ao excluir: " + error.message, "error"); return; }
+    const res = await sb.from("links").delete().eq("id", id);
+    if (falhou(res, "Erro ao excluir")) return;
     toast("Link excluído.", "success");
     setExcluindo(null);
+    carregar();
+  }
+
+  // ── Organizar: categorias ──
+  async function salvarOrdemCategorias(lista) {
+    for (let i = 0; i < lista.length; i++) {
+      const c = lista[i];
+      const res = c.id
+        ? (c.ordem !== i ? await sb.from("links_categorias").update({ ordem: i }).eq("id", c.id) : null)
+        : await sb.from("links_categorias").insert({ nome: c.nome, cor: c.cor || COR_PADRAO, ordem: i });
+      if (falhou(res, "Erro ao reordenar")) return;
+    }
+    carregar();
+  }
+  function moverCategoria(i, dir) {
+    const lista = [...ordenadas];
+    const j = i + dir;
+    if (j < 0 || j >= lista.length) return;
+    [lista[i], lista[j]] = [lista[j], lista[i]];
+    salvarOrdemCategorias(lista);
+  }
+  async function mudarCor(c, cor) {
+    const res = c.id
+      ? await sb.from("links_categorias").update({ cor }).eq("id", c.id)
+      : await sb.from("links_categorias").insert({ nome: c.nome, cor, ordem: ordenadas.indexOf(c) });
+    if (falhou(res, "Erro ao mudar a cor")) return;
+    carregar();
+  }
+  async function renomear(c) {
+    const novo = (nomes[c.nome] ?? c.nome).trim();
+    if (!novo || novo === c.nome) { setNomes(n => ({ ...n, [c.nome]: undefined })); return; }
+    if (ordenadas.some(o => o.nome === novo)) { toast(`Já existe uma categoria "${novo}".`, "error"); return; }
+    let res = c.id
+      ? await sb.from("links_categorias").update({ nome: novo }).eq("id", c.id)
+      : await sb.from("links_categorias").insert({ nome: novo, cor: c.cor || COR_PADRAO, ordem: ordenadas.indexOf(c) });
+    if (falhou(res, "Erro ao renomear")) return;
+    res = await sb.from("links").update({ categoria: novo }).eq("categoria", c.nome);
+    if (falhou(res, "Categoria renomeada, mas os links não foram atualizados")) return;
+    toast(`Categoria renomeada para "${novo}".`, "success");
+    setNomes(n => ({ ...n, [c.nome]: undefined }));
+    carregar();
+  }
+  async function excluirCategoria(c) {
+    if (linksDa(c.nome).length) { toast("Só dá para excluir categorias sem links.", "error"); return; }
+    if (c.id) { const res = await sb.from("links_categorias").delete().eq("id", c.id); if (falhou(res, "Erro ao excluir a categoria")) return; }
+    toast("Categoria excluída.", "success");
+    carregar();
+  }
+  async function criarCategoria() {
+    const nome = novaCat.trim();
+    if (!nome) return;
+    if (ordenadas.some(o => o.nome === nome)) { toast(`Já existe uma categoria "${nome}".`, "error"); return; }
+    if (await garantirCategoria(nome)) { toast(`Categoria "${nome}" criada.`, "success"); setNovaCat(""); carregar(); }
+  }
+
+  // ── Organizar: links dentro da categoria ──
+  async function moverLink(l, dir) {
+    const lista = linksDa(l.categoria || "Geral");
+    const i = lista.findIndex(x => x.id === l.id), j = i + dir;
+    if (j < 0 || j >= lista.length) return;
+    [lista[i], lista[j]] = [lista[j], lista[i]];
+    for (let k = 0; k < lista.length; k++) {
+      if ((lista[k].ordem || 0) === k && k !== i && k !== j) continue;
+      const res = await sb.from("links").update({ ordem: k }).eq("id", lista[k].id);
+      if (falhou(res, "Erro ao reordenar")) return;
+    }
     carregar();
   }
 
@@ -2574,9 +2703,9 @@ function LinksView({ podeEditar, toast }) {
       </div>
       <div className="form-grid">
         <Field label="Descrição" hint="Opcional, uma linha"><input className="input" value={draft.descricao} onChange={set("descricao")} placeholder="Para que serve" /></Field>
-        <Field label="Categoria">
+        <Field label="Categoria" hint="Escolha ou digite uma nova">
           <input className="input" list="links-categorias" value={draft.categoria} onChange={set("categoria")} />
-          <datalist id="links-categorias">{[...new Set([...CATEGORIAS_LINKS, ...(links || []).map(l => l.categoria)])].map(c => <option key={c} value={c} />)}</datalist>
+          <datalist id="links-categorias">{ordenadas.map(c => <option key={c.nome} value={c.nome} />)}</datalist>
         </Field>
       </div>
       <div className="action-row">
@@ -2586,6 +2715,46 @@ function LinksView({ podeEditar, toast }) {
     </div>
   );
 
+  const gerenciar = (
+    <div className="action-block links-org">
+      <div className="action-head"><Icon name="settings" size={16} /><strong>Categorias</strong></div>
+      {!catsOk && <p className="action-note">A tabela de categorias ainda não foi criada no banco: dá para ordenar os links, mas não as categorias nem as cores.</p>}
+      <ol className="links-org-lista">
+        {ordenadas.map((c, i) => (
+          <li key={c.nome} className="links-org-item" style={{ "--cat": c.cor }}>
+            <span className="links-org-pos">
+              <button className="cc-note-x is-edit" title="Subir" disabled={!catsOk || i === 0} onClick={() => moverCategoria(i, -1)}><Icon name="chevron" size={14} style={{ transform: "rotate(180deg)" }} /></button>
+              <button className="cc-note-x is-edit" title="Descer" disabled={!catsOk || i === ordenadas.length - 1} onClick={() => moverCategoria(i, 1)}><Icon name="chevron" size={14} /></button>
+            </span>
+            <input className="input links-org-nome" value={nomes[c.nome] ?? c.nome} disabled={!catsOk}
+              onChange={(e) => setNomes(n => ({ ...n, [c.nome]: e.target.value }))}
+              onBlur={() => renomear(c)} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
+            <span className="links-org-cores" role="radiogroup" aria-label={"Cor de " + c.nome}>
+              {CORES_LINKS.map(k => (
+                <button key={k.cor} role="radio" aria-checked={c.cor === k.cor} title={k.nome + " · " + k.cor} disabled={!catsOk}
+                  className={"links-cor" + (c.cor === k.cor ? " is-active" : "") + (k.nome === "Azul Tela" ? " inicia-sec" : "")} style={{ background: k.cor }} onClick={() => mudarCor(c, k.cor)} />
+              ))}
+            </span>
+            <span className="links-org-qtd">{plural(linksDa(c.nome).length, "link", "links")}</span>
+            <button className="cc-note-x" title={linksDa(c.nome).length ? "Só dá para excluir categorias sem links" : "Excluir categoria"}
+              disabled={!catsOk || linksDa(c.nome).length > 0} onClick={() => excluirCategoria(c)}><Icon name="trash" size={14} /></button>
+          </li>
+        ))}
+      </ol>
+      {catsOk && (
+        <div className="links-org-nova">
+          <input className="input" value={novaCat} onChange={(e) => setNovaCat(e.target.value)} placeholder="Nova categoria"
+            onKeyDown={(e) => { if (e.key === "Enter") criarCategoria(); }} />
+          <Button variant="outline" size="sm" icon="plus" disabled={!novaCat.trim()} onClick={criarCategoria}>Criar categoria</Button>
+        </div>
+      )}
+      <p className="action-note">Use as setas para ordenar as categorias e, nos cards abaixo, os links de cada categoria. Renomear muda a categoria em todos os links dela.</p>
+    </div>
+  );
+
+  // Categorias exibidas: na ordem escolhida; sem links só aparecem no modo organizar (e não na busca).
+  const exibidas = ordenadas.filter(c => linksDa(c.nome, filtrados).length > 0);
+
   return (
     <div className="view">
       <header className="view-head links-head">
@@ -2593,7 +2762,14 @@ function LinksView({ podeEditar, toast }) {
           <h1>Links úteis</h1>
           <p>Atalhos do time: calendário, marca, ferramentas e pastas.</p>
         </div>
-        {podeEditar && !erro && editando !== "novo" && <Button variant="outline" icon="plus" onClick={() => abrir(null)}>Adicionar link</Button>}
+        {podeEditar && !erro && (
+          <div className="links-head-acoes">
+            <Button variant={organizar ? "primary" : "outline"} icon="settings" onClick={() => { setOrganizar(!organizar); setEditando(null); }}>
+              {organizar ? "Concluir" : "Organizar"}
+            </Button>
+            {!organizar && editando !== "novo" && <Button variant="outline" icon="plus" onClick={() => abrir(null)}>Adicionar link</Button>}
+          </div>
+        )}
       </header>
 
       {erro ? (
@@ -2602,48 +2778,57 @@ function LinksView({ podeEditar, toast }) {
         <div className="empty"><Icon name="clock" size={24} /><p>Carregando links…</p></div>
       ) : (
         <>
+          {organizar && gerenciar}
           {editando === "novo" && formulario}
-          {links.length > 0 && (
+          {links.length > 0 && !organizar && (
             <div className="search links-search">
               <Icon name="filter" size={15} />
               <input className="search-input" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar link…" />
             </div>
           )}
-          {links.length === 0 && editando !== "novo" && (
+          {links.length === 0 && editando !== "novo" && !organizar && (
             <div className="empty big"><Icon name="bookmark" size={28} /><p>{podeEditar ? "Nenhum link cadastrado ainda. Use \"Adicionar link\"." : "Nenhum link cadastrado ainda."}</p></div>
           )}
-          {categorias.map(cat => (
-            <section key={cat} className="painel-sec">
-              <h2 className="painel-h">{cat}</h2>
-              <div className="links-grid">
-                {filtrados.filter(l => (l.categoria || "Geral") === cat).map(l => editando === l.id
-                  ? <div key={l.id} className="links-grid-full">{formulario}</div>
-                  : (
-                  <div key={l.id} className="link-card">
-                    <a href={l.url} target="_blank" rel="noopener noreferrer" className="link-card-a">
-                      <span className="link-card-t">{l.titulo} <Icon name="externalLink" size={13} /></span>
-                      {l.descricao && <span className="link-card-d">{l.descricao}</span>}
-                      <span className="link-card-u">{dominio(l.url)}</span>
-                    </a>
-                    {podeEditar && (
-                      excluindo === l.id ? (
-                        <div className="link-card-confirma">
-                          <span>Excluir?</span>
-                          <Button variant="ghost" size="sm" onClick={() => setExcluindo(null)}>Não</Button>
-                          <Button variant="danger" size="sm" onClick={() => excluir(l.id)}>Sim</Button>
-                        </div>
-                      ) : (
-                        <div className="link-card-acoes">
-                          <button className="cc-note-x is-edit" title="Editar link" onClick={() => abrir(l)}><Icon name="edit" size={14} /></button>
-                          <button className="cc-note-x" title="Excluir link" onClick={() => setExcluindo(l.id)}><Icon name="trash" size={14} /></button>
-                        </div>
-                      )
-                    )}
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
+          {exibidas.map(cat => {
+            const lista = linksDa(cat.nome, filtrados);
+            return (
+              <section key={cat.nome} className="painel-sec" style={{ "--cat": cat.cor }}>
+                <h2 className="painel-h links-cat-h"><span className="links-cat-dot" aria-hidden="true" />{cat.nome}</h2>
+                <div className="links-grid">
+                  {lista.map((l, i) => editando === l.id
+                    ? <div key={l.id} className="links-grid-full">{formulario}</div>
+                    : (
+                    <div key={l.id} className="link-card">
+                      <a href={l.url} target="_blank" rel="noopener noreferrer" className="link-card-a">
+                        <span className="link-card-t">{l.titulo} <Icon name="externalLink" size={13} /></span>
+                        {l.descricao && <span className="link-card-d">{l.descricao}</span>}
+                        <span className="link-card-u">{dominio(l.url)}</span>
+                      </a>
+                      {podeEditar && (
+                        organizar ? (
+                          <div className="link-card-acoes">
+                            <button className="cc-note-x is-edit" title="Mover para trás" disabled={i === 0} onClick={() => moverLink(l, -1)}><Icon name="chevron" size={14} style={{ transform: "rotate(90deg)" }} /></button>
+                            <button className="cc-note-x is-edit" title="Mover para frente" disabled={i === lista.length - 1} onClick={() => moverLink(l, 1)}><Icon name="chevron" size={14} style={{ transform: "rotate(-90deg)" }} /></button>
+                          </div>
+                        ) : excluindo === l.id ? (
+                          <div className="link-card-confirma">
+                            <span>Excluir?</span>
+                            <Button variant="ghost" size="sm" onClick={() => setExcluindo(null)}>Não</Button>
+                            <Button variant="danger" size="sm" onClick={() => excluir(l.id)}>Sim</Button>
+                          </div>
+                        ) : (
+                          <div className="link-card-acoes">
+                            <button className="cc-note-x is-edit" title="Editar link" onClick={() => abrir(l)}><Icon name="edit" size={14} /></button>
+                            <button className="cc-note-x" title="Excluir link" onClick={() => setExcluindo(l.id)}><Icon name="trash" size={14} /></button>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
           {busca && filtrados.length === 0 && <p className="painel-vazio">Nenhum link encontrado para "{busca}".</p>}
         </>
       )}
