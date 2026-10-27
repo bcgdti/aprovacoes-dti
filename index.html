@@ -86,6 +86,29 @@ a{ color:var(--accent); }
 .nav-badge + .nav-badge{ margin-left:4px; }
 .nav-badge.is-secondary{ background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent); }
 .sidebar-foot{ border-top:1px solid var(--line); padding-top:14px; margin-top:8px; }
+.nav{ gap:18px; }
+.nav-group{ display:flex; flex-direction:column; gap:4px; }
+.nav-group-title{ padding:0 14px 4px; font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); }
+.nav-cta{ display:flex; align-items:center; justify-content:center; gap:8px; margin:0 0 20px; padding:11px 14px; border:none; border-radius:var(--radius-sm); background:var(--accent); color:#fff; font:inherit; font-size:15px; font-weight:700; cursor:pointer; transition:.13s; }
+.nav-cta:hover{ filter:brightness(1.08); }
+.nav-cta.is-active{ box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.nav-rodape{ display:flex; flex-direction:column; gap:4px; }
+
+/* ───── Links úteis ───── */
+.links-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.links-search{ margin-bottom:22px; max-width:420px; }
+.links-form{ margin-bottom:24px; }
+.links-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px; }
+.links-grid-full{ grid-column:1 / -1; }
+.link-card{ position:relative; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); box-shadow:var(--shadow); transition:.13s; }
+.link-card:hover{ border-color:color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.link-card-a{ display:flex; flex-direction:column; gap:4px; padding:14px 16px; color:var(--ink); text-decoration:none; min-height:100%; box-sizing:border-box; }
+.link-card-t{ display:flex; align-items:center; gap:6px; font-weight:700; font-size:15px; padding-right:52px; }
+.link-card-t svg{ color:var(--ink-3); flex-shrink:0; }
+.link-card-d{ font-size:13.5px; color:var(--ink-2); line-height:1.45; }
+.link-card-u{ font-size:12.5px; color:var(--accent); margin-top:auto; padding-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.link-card-acoes{ position:absolute; top:8px; right:8px; display:flex; gap:2px; }
+.link-card-confirma{ display:flex; align-items:center; gap:6px; padding:0 12px 12px; font-size:13px; font-weight:600; color:#C1450F; }
 
 /* ───── User picker ───── */
 .userpick{ position:relative; }
@@ -441,13 +464,17 @@ fieldset.form-sec > legend + *{ clear:both; }
 @media (max-width:760px){
   .app.nav-sidebar{ grid-template-columns:1fr; grid-template-rows:auto 1fr; }
   .sidebar{ position:sticky; top:0; height:auto; flex-direction:row; align-items:center;
-    padding:10px 14px; gap:10px; border-right:none; border-bottom:1px solid var(--line); overflow-x:auto; }
+    padding:10px 10px; gap:6px; border-right:none; border-bottom:1px solid var(--line); overflow-x:auto; }
   .sidebar .brand{ padding:0; flex-shrink:0; }
   .sidebar .brand-text{ display:none; }
   .sidebar .nav{ flex-direction:row; flex:1; gap:4px; }
   .sidebar .navitem span:not(.nav-badge){ display:none; }
-  .sidebar .navitem{ padding:10px 12px; }
-  .sidebar .navitem.is-active span:not(.nav-badge){ display:inline; }
+  .sidebar .nav-group{ flex-direction:row; gap:4px; }
+  .sidebar .nav-group-title{ display:none; }
+  .sidebar .nav-cta{ margin:0; padding:9px 10px; flex-shrink:0; }
+  .sidebar .nav-cta span{ display:none; }
+  .sidebar .nav-rodape{ flex-direction:row; }
+  .sidebar .navitem{ padding:9px 8px; }
   .sidebar-foot{ border-top:none; padding-top:0; margin-top:0; flex-shrink:0; }
   .sidebar-foot .userpick-name,.sidebar-foot .userpick-btn svg{ display:none; }
   .sidebar-foot .userpick-btn{ padding:5px; border:none; }
@@ -602,6 +629,13 @@ function Icon({ name, size = 18, style }) {
     link: <><path d="M10 13a5 5 0 0 0 7.5.6l3-3a5 5 0 0 0-7-7.1l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.6l-3 3a5 5 0 0 0 7 7.1l1.7-1.7" /></>,
     settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33A1.65 1.65 0 0 0 14 20.9V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></>,
     users: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,
+    plus: <path d="M12 5v14M5 12h14" />,
+    trash: <><path d="M4 7h16" /><path d="M9 7V4h6v3" /><path d="M6 7l1 13h10l1-13" /></>,
+    externalLink: <><path d="M14 4h6v6" /><path d="M20 4l-9 9" /><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></>,
+    image: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="M21 16l-5-5-9 9" /></>,
+    file: <><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z" /><path d="M14 3v5h5" /></>,
+    attachment: <path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-2.8-2.8l7.8-7.8" />,
+    bookmark: <path d="M6 3h12v18l-6-4-6 4z" />,
   };
   return <svg {...common}>{P[name] || P.dot}</svg>;
 }
@@ -2471,6 +2505,152 @@ function MyView({ items, currentUser, onUpdate, onDelete, toast }) {
   );
 }
 
+/* ════════════════════ LINKS ÚTEIS ════════════════════ */
+const CATEGORIAS_LINKS = ["Calendário e planejamento", "Marca e templates", "Ferramentas", "Pastas e arquivos", "Métricas e relatórios", "Geral"];
+const LINK_VAZIO = { titulo: "", url: "", descricao: "", categoria: "Geral" };
+
+function LinksView({ podeEditar, toast }) {
+  const [links, setLinks] = useS(null);
+  const [erro, setErro] = useS("");
+  const [busca, setBusca] = useS("");
+  const [editando, setEditando] = useS(null); // null | "novo" | id
+  const [draft, setDraft] = useS(LINK_VAZIO);
+  const [excluindo, setExcluindo] = useS(null);
+  const [salvando, setSalvando] = useS(false);
+
+  async function carregar() {
+    const { data, error } = await sb.from("links").select("*").order("categoria").order("ordem").order("id");
+    if (error) { setErro(error.message || String(error)); setLinks([]); return; }
+    setErro(""); setLinks(data || []);
+  }
+  useEffect_(() => { carregar(); }, []);
+
+  const filtrados = (links || []).filter(l => !busca ||
+    (l.titulo + " " + (l.descricao || "") + " " + l.url + " " + (l.categoria || "")).toLowerCase().includes(busca.toLowerCase()));
+  const categorias = [...new Set([...CATEGORIAS_LINKS.filter(c => filtrados.some(l => l.categoria === c)),
+    ...filtrados.map(l => l.categoria || "Geral")])];
+  const dominio = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
+  const set = (k) => (e) => setDraft(d => ({ ...d, [k]: e.target.value }));
+
+  function abrir(link) {
+    setEditando(link ? link.id : "novo");
+    setDraft(link ? { titulo: link.titulo, url: link.url, descricao: link.descricao || "", categoria: link.categoria || "Geral" } : LINK_VAZIO);
+  }
+
+  async function salvar() {
+    const url = draft.url.trim();
+    if (!draft.titulo.trim() || !url) { toast("Preencha o título e o endereço.", "error"); return; }
+    const reg = { titulo: draft.titulo.trim(), url: /^https?:\/\//i.test(url) ? url : "https://" + url,
+      descricao: draft.descricao.trim(), categoria: draft.categoria.trim() || "Geral" };
+    setSalvando(true);
+    let res;
+    if (editando === "novo") {
+      const ordem = (links || []).filter(l => l.categoria === reg.categoria).length;
+      res = await sb.from("links").insert({ ...reg, ordem });
+    } else {
+      res = await sb.from("links").update(reg).eq("id", editando);
+    }
+    setSalvando(false);
+    if (res.error) { toast("Erro ao salvar o link: " + res.error.message, "error"); return; }
+    toast(editando === "novo" ? "Link adicionado." : "Link atualizado.", "success");
+    setEditando(null);
+    carregar();
+  }
+
+  async function excluir(id) {
+    const { error } = await sb.from("links").delete().eq("id", id);
+    if (error) { toast("Erro ao excluir: " + error.message, "error"); return; }
+    toast("Link excluído.", "success");
+    setExcluindo(null);
+    carregar();
+  }
+
+  const formulario = (
+    <div className="action-block links-form">
+      <div className="action-head"><Icon name={editando === "novo" ? "plus" : "edit"} size={16} /><strong>{editando === "novo" ? "Novo link" : "Editar link"}</strong></div>
+      <div className="form-grid">
+        <Field label="Título" required><input className="input" value={draft.titulo} onChange={set("titulo")} placeholder="Ex.: Calendário de conteúdo" autoFocus /></Field>
+        <Field label="Endereço" required><input className="input" value={draft.url} onChange={set("url")} placeholder="https://…" /></Field>
+      </div>
+      <div className="form-grid">
+        <Field label="Descrição" hint="Opcional, uma linha"><input className="input" value={draft.descricao} onChange={set("descricao")} placeholder="Para que serve" /></Field>
+        <Field label="Categoria">
+          <input className="input" list="links-categorias" value={draft.categoria} onChange={set("categoria")} />
+          <datalist id="links-categorias">{[...new Set([...CATEGORIAS_LINKS, ...(links || []).map(l => l.categoria)])].map(c => <option key={c} value={c} />)}</datalist>
+        </Field>
+      </div>
+      <div className="action-row">
+        <Button variant="ghost" size="sm" onClick={() => setEditando(null)}>Cancelar</Button>
+        <Button variant="primary" size="sm" icon="check2" disabled={salvando} onClick={salvar}>{salvando ? "Salvando…" : "Salvar"}</Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="view">
+      <header className="view-head links-head">
+        <div>
+          <h1>Links úteis</h1>
+          <p>Atalhos do time: calendário, marca, ferramentas e pastas.</p>
+        </div>
+        {podeEditar && !erro && editando !== "novo" && <Button variant="outline" icon="plus" onClick={() => abrir(null)}>Adicionar link</Button>}
+      </header>
+
+      {erro ? (
+        <div className="empty"><Icon name="x" size={24} /><p>Não consegui carregar os links. {/relation|does not exist|schema cache/i.test(erro) ? "A tabela de links ainda não foi criada no banco." : erro}</p></div>
+      ) : links === null ? (
+        <div className="empty"><Icon name="clock" size={24} /><p>Carregando links…</p></div>
+      ) : (
+        <>
+          {editando === "novo" && formulario}
+          {links.length > 0 && (
+            <div className="search links-search">
+              <Icon name="filter" size={15} />
+              <input className="search-input" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar link…" />
+            </div>
+          )}
+          {links.length === 0 && editando !== "novo" && (
+            <div className="empty big"><Icon name="bookmark" size={28} /><p>{podeEditar ? "Nenhum link cadastrado ainda. Use \"Adicionar link\"." : "Nenhum link cadastrado ainda."}</p></div>
+          )}
+          {categorias.map(cat => (
+            <section key={cat} className="painel-sec">
+              <h2 className="painel-h">{cat}</h2>
+              <div className="links-grid">
+                {filtrados.filter(l => (l.categoria || "Geral") === cat).map(l => editando === l.id
+                  ? <div key={l.id} className="links-grid-full">{formulario}</div>
+                  : (
+                  <div key={l.id} className="link-card">
+                    <a href={l.url} target="_blank" rel="noopener noreferrer" className="link-card-a">
+                      <span className="link-card-t">{l.titulo} <Icon name="externalLink" size={13} /></span>
+                      {l.descricao && <span className="link-card-d">{l.descricao}</span>}
+                      <span className="link-card-u">{dominio(l.url)}</span>
+                    </a>
+                    {podeEditar && (
+                      excluindo === l.id ? (
+                        <div className="link-card-confirma">
+                          <span>Excluir?</span>
+                          <Button variant="ghost" size="sm" onClick={() => setExcluindo(null)}>Não</Button>
+                          <Button variant="danger" size="sm" onClick={() => excluir(l.id)}>Sim</Button>
+                        </div>
+                      ) : (
+                        <div className="link-card-acoes">
+                          <button className="cc-note-x is-edit" title="Editar link" onClick={() => abrir(l)}><Icon name="edit" size={14} /></button>
+                          <button className="cc-note-x" title="Excluir link" onClick={() => setExcluindo(l.id)}><Icon name="trash" size={14} /></button>
+                        </div>
+                      )
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+          {busca && filtrados.length === 0 && <p className="painel-vazio">Nenhum link encontrado para "{busca}".</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ════════════════════ CONFIGURAÇÕES (admin) ════════════════════ */
 function ConfigView({ toast, onTeamChange }) {
   const [equipe, setEquipe] = useS(null);
@@ -2631,11 +2811,12 @@ const { createClient } = supabase;
 // Cliente Supabase — reutilizado em todo o app.
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// "Enviar conteúdo" não entra aqui: é o botão de destaque no topo do menu.
 const NAV = [
-  { id: "enviar",    label: "Enviar conteúdo",    icon: "send" },
-  { id: "meus",      label: "Meus envios",         icon: "user" },
-  { id: "fila",      label: "Fila de aprovação",   icon: "inbox" },
-  { id: "aprovador", label: "Painel do aprovador", icon: "check" },
+  { id: "aprovador", label: "Painel do aprovador", icon: "check",    grupo: "Meu trabalho" },
+  { id: "meus",      label: "Meus envios",         icon: "user",     grupo: "Meu trabalho" },
+  { id: "fila",      label: "Fila de aprovação",   icon: "inbox",    grupo: "Do time" },
+  { id: "links",     label: "Links úteis",         icon: "bookmark", grupo: "Do time" },
   { id: "config",    label: "Configurações",       icon: "settings", adminOnly: true },
 ];
 
@@ -2863,6 +3044,17 @@ function App() {
 
   useEffect_(() => { if (user) { try { localStorage.setItem("dti_aprovacoes_user", user); } catch {} } }, [user]);
 
+  // Página inicial: Painel quando há algo dependendo de quem entrou; senão, a Fila. Link direto (?id=) sempre abre a Fila.
+  const rotaInicialDefinida = React.useRef(false);
+  useEffect_(() => {
+    if (rotaInicialDefinida.current || !items || !user) return;
+    rotaInicialDefinida.current = true;
+    if (urlId || user === USUARIO_EXTERNO) return;
+    const dependeDeMim = items.some(it => it.status === "Aguardando aprovação" &&
+      (it.aprovador === user || (it.aprovadorSecundario === user && !it.parecerSecundario)));
+    if (dependeDeMim) setRoute("aprovador");
+  }, [items, user]);
+
   async function reload(silent) {
     if (!silent) { setItems(null); setLoadError(null); }
     try {
@@ -2986,7 +3178,10 @@ function App() {
         <>
           <div className="userpick-scrim" onClick={() => setUserOpen(false)} />
           <div className="userpick-menu">
-            <span className="userpick-head">Você é…</span>
+            <button className="userpick-opt" onClick={() => { setUserOpen(false); reload(true); showToast("Lista atualizada.", "info"); }}>
+              <Icon name="refresh" size={16} /> Atualizar a lista
+            </button>
+            <span className="userpick-head" style={{marginTop:6}}>Você é…</span>
             {TEAM_ATIVOS.map(n => (
               <button key={n} className={"userpick-opt" + (n === user ? " is-active" : "")}
                 onClick={() => { setUser(n); setUserOpen(false); }}>
@@ -3021,16 +3216,26 @@ function App() {
   const visibleNav = isExterno
     ? NAV.filter(n => n.id === "fila")
     : NAV.filter(n => !n.adminOnly || isAdmin);
-  const NavItems = visibleNav.map(n => (
+  const navItem = (n) => (
     <button key={n.id} className={"navitem" + (route === n.id ? " is-active" : "")}
-      onClick={() => setRoute(n.id)}>
+      onClick={() => setRoute(n.id)} title={n.label}>
       <Icon name={n.icon} size={19} />
       <span>{n.label}</span>
       {n.id === "aprovador" && pendingForMe > 0 && <span className="nav-badge" title="Pendentes como aprovador principal">{pendingForMe}</span>}
       {n.id === "aprovador" && secondaryForMe > 0 && <span className="nav-badge is-secondary" title="Pendentes para seu parecer (secundário)">{secondaryForMe}</span>}
       {n.id === "meus"      && adjustForMe  > 0 && <span className="nav-badge">{adjustForMe}</span>}
     </button>
+  );
+  // Itens agrupados ("Meu trabalho", "Do time"); os sem grupo (Configurações) vão para o rodapé.
+  const grupos = [...new Set(visibleNav.filter(n => n.grupo).map(n => n.grupo))];
+  const NavItems = grupos.map(g => (
+    <div key={g} className="nav-group">
+      <span className="nav-group-title">{g}</span>
+      {visibleNav.filter(n => n.grupo === g).map(navItem)}
+    </div>
   ));
+  const NavRodape = visibleNav.filter(n => !n.grupo).map(navItem);
+  const podeEditarLinks = !!isAdmin || PERFIS_MASTER.includes(user);
 
   let content;
   if (loadError) {
@@ -3054,6 +3259,8 @@ function App() {
     content = <ApproverView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} irParaFila={() => setRoute("fila")} />;
   } else if (route === "config" && isAdmin) {
     content = <ConfigView toast={showToast} onTeamChange={onTeamChange} />;
+  } else if (route === "links" && !isExterno) {
+    content = <LinksView podeEditar={podeEditarLinks} toast={showToast} />;
   } else {
     content = <QueueView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} initialOpenId={urlId} />;
   }
@@ -3069,10 +3276,13 @@ function App() {
       <div className="app nav-sidebar" style={!user ? {filter:"blur(3px)",pointerEvents:"none",userSelect:"none"} : {}}>
         <aside className="sidebar">
           {Brand}
+          {!isExterno && (
+            <button className={"nav-cta" + (route === "enviar" ? " is-active" : "")} onClick={() => setRoute("enviar")} title="Enviar conteúdo">
+              <Icon name="plus" size={18} /><span>Enviar conteúdo</span>
+            </button>
+          )}
           <nav className="nav">{NavItems}</nav>
-          <button className="navitem" onClick={() => { reload(true); showToast("Lista atualizada.", "info"); }}>
-            <Icon name="refresh" size={18} /><span>Atualizar</span>
-          </button>
+          {NavRodape.length > 0 && <div className="nav-rodape">{NavRodape}</div>}
           <div className="sidebar-foot">{UserPicker}</div>
         </aside>
         <main className="main">{content}</main>

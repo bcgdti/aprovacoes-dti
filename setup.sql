@@ -83,3 +83,20 @@ alter table conteudos add column if not exists cancelamento jsonb default null;
 -- Lista de { campo, anterior, por, data }. Campos: comentarios, comentarioSecundario,
 -- comentarioExterno, conteudo, versaoCorrigida.
 alter table conteudos add column if not exists edicoes jsonb default '[]'::jsonb;
+
+-- 7. Links úteis do time (2026-10-27)
+-- Editados pela página "Links úteis" (botões visíveis só para admins e perfis master).
+create table if not exists links (
+  id         bigint generated always as identity primary key,
+  titulo     text not null,
+  url        text not null,
+  descricao  text default '',
+  categoria  text default 'Geral',
+  ordem      int  default 0,
+  created_at timestamptz default now()
+);
+alter table links enable row level security;
+create policy "links_select" on links for select to anon using (true);
+create policy "links_insert" on links for insert to anon with check (true);
+create policy "links_update" on links for update to anon using (true) with check (true);
+create policy "links_delete" on links for delete to anon using (true);
