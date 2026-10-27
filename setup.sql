@@ -78,3 +78,8 @@ create policy "config_select"    on config  for select to anon using (true);
 -- Guarda motivo, card substituto, comentário, quem cancelou, data e status anterior.
 -- Status "Cancelado" usa a coluna status (text) que já existe.
 alter table conteudos add column if not exists cancelamento jsonb default null;
+
+-- 6. Histórico de edições de comentários e texto (2026-10-27)
+-- Lista de { campo, anterior, por, data }. Campos: comentarios, comentarioSecundario,
+-- comentarioExterno, conteudo, versaoCorrigida.
+alter table conteudos add column if not exists edicoes jsonb default '[]'::jsonb;

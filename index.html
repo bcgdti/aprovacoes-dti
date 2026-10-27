@@ -302,6 +302,13 @@ a{ color:var(--accent); }
 .cc-note-meta{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-3); font-weight:500; }
 .cc-note-x{ border:none; background:transparent; color:var(--ink-3); padding:3px; border-radius:6px; height:fit-content; align-self:flex-start; }
 .cc-note-x:hover{ background:#FDEAE0; color:#D9501E; }
+.cc-note-x.is-edit:hover{ background:color-mix(in srgb, var(--accent) 10%, transparent); color:var(--accent); }
+.edited-tag{ border:none; background:transparent; padding:0 2px; font:inherit; font-size:12.5px; font-weight:500; color:var(--ink-3); text-decoration:underline dotted; text-underline-offset:3px; cursor:pointer; text-transform:none; letter-spacing:0; }
+.edited-tag:hover{ color:var(--accent); }
+.block-label:has(.edit-history){ flex-wrap:wrap; white-space:normal; }
+.edit-history{ order:99; margin-top:8px; border-left:2px solid var(--line); padding:2px 0 2px 12px; display:flex; flex-direction:column; gap:10px; font-weight:400; text-transform:none; letter-spacing:0; }
+.edit-history-meta{ font-size:12px; color:var(--ink-3); font-weight:600; margin-bottom:2px; }
+.edit-history-text{ margin:0; font-size:13.5px; line-height:1.5; color:var(--ink-2); white-space:pre-wrap; }
 .ia-result .block-label{ color:#0A7E94; margin-bottom:7px; }
 .ia-result p{ margin:0; font-size:14px; line-height:1.55; color:#16434C; white-space:pre-wrap; }
 
@@ -1265,7 +1272,7 @@ function CommentableContent({ item, currentUser, onUpdate, versao }) {
   return (
     <div className="content-block">
       <span className="block-label" style={{ whiteSpace: "normal" }}>
-        {v === "corrigida" ? "Versão corrigida" : (item.versaoCorrigida ? "Versão original" : "Conteúdo")} <span className="cc-hint">— selecione um trecho para comentar</span>
+        {v === "corrigida" ? "Versão corrigida" : (item.versaoCorrigida ? "Versão original" : "Conteúdo")} <EditedTag item={item} campo={v === "corrigida" ? "versaoCorrigida" : "conteudo"} /> <span className="cc-hint">— selecione um trecho para comentar</span>
       </span>
       <div className="content-text cc-text" ref={ref} onMouseUp={onMouseUp}
         onMouseDown={() => { setPending(null); setSel(null); }}>
@@ -1367,7 +1374,11 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
 
   function saveComment(field) {
     const map = { principal: "comentarios", secundario: "comentarioSecundario", externo: "comentarioExterno" };
-    onUpdate(item.id, { [map[field]]: editCommentDraft.trim() });
+    const campo = map[field];
+    const novo = editCommentDraft.trim();
+    const edicoes = registrarEdicao(item, campo, novo, currentUser);
+    if (!edicoes) { setEditingComment(null); return; }
+    onUpdate(item.id, { [campo]: novo, edicoes });
     toast("Comentário atualizado.", "success");
     setEditingComment(null);
   }
@@ -1462,7 +1473,7 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
           </div>
         </div>
       )}
-      {editing && <EditPanel item={item} onUpdate={onUpdate} toast={toast} close={() => setEditing(false)} />}
+      {editing && <EditPanel item={item} currentUser={currentUser} onUpdate={onUpdate} toast={toast} close={() => setEditing(false)} />}
 
       {needsIACheck(item) && item.checkIA && (
         <div className="info-line ok"><Icon name="sparkle" size={15} /> Check de IA confirmado pelo autor antes do envio.</div>
@@ -1472,9 +1483,10 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
         <div className={"comment-block" + (item.parecerSecundario === "Com ressalvas" ? " is-warn" : "")}>
           <span className="block-label">
             <Avatar name={item.aprovadorSecundario} size={18} /> Parecer de {item.aprovadorSecundario} (secundário): <strong>{item.parecerSecundario}</strong>
+            <EditedTag item={item} campo="comentarioSecundario" />
             {isSecondary && editingComment !== "secundario" && (
-              <button className="cc-note-x" title="Editar comentário" style={{marginLeft:"auto"}} onClick={() => startEditComment("secundario", item.comentarioSecundario)}>
-                <Icon name="pencil" size={13} />
+              <button className="cc-note-x is-edit" title="Editar comentário" style={{marginLeft:"auto"}} onClick={() => startEditComment("secundario", item.comentarioSecundario)}>
+                <Icon name="edit" size={14} />
               </button>
             )}
           </span>
@@ -1497,9 +1509,10 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
           <span className="block-label">
             <Avatar name={item.aprovador} size={18} /> Comentário de {item.aprovador}
             {item.dataDecisao && <span className="comment-date">· {fmtDate(item.dataDecisao)}</span>}
+            <EditedTag item={item} campo="comentarios" />
             {isApprover && editingComment !== "principal" && (
-              <button className="cc-note-x" title="Editar comentário" style={{marginLeft:"auto"}} onClick={() => startEditComment("principal", item.comentarios)}>
-                <Icon name="pencil" size={13} />
+              <button className="cc-note-x is-edit" title="Editar comentário" style={{marginLeft:"auto"}} onClick={() => startEditComment("principal", item.comentarios)}>
+                <Icon name="edit" size={14} />
               </button>
             )}
           </span>
@@ -1553,9 +1566,10 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
             <Icon name="globe" size={14} /> Aprovação externa — {item.contatoExterno || "contato não informado"}
             {item.statusExterno ? ": " : ""}<strong>{item.statusExterno || "(após aprovação interna)"}</strong>
             {item.dataExterna && <span className="comment-date">· {fmtDate(item.dataExterna)}</span>}
+            <EditedTag item={item} campo="comentarioExterno" />
             {(isApprover || isAuthor) && item.comentarioExterno && editingComment !== "externo" && (
-              <button className="cc-note-x" title="Editar comentário externo" style={{marginLeft:"auto"}} onClick={() => startEditComment("externo", item.comentarioExterno)}>
-                <Icon name="pencil" size={13} />
+              <button className="cc-note-x is-edit" title="Editar comentário externo" style={{marginLeft:"auto"}} onClick={() => startEditComment("externo", item.comentarioExterno)}>
+                <Icon name="edit" size={14} />
               </button>
             )}
           </span>
@@ -1613,6 +1627,38 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
     </div>
   );
 }
+/* ════════════════════ HISTÓRICO DE EDIÇÕES ════════════════════ */
+// Devolve a lista de edições com a versão anterior do campo, ou null se o texto não mudou.
+function registrarEdicao(item, campo, novo, por) {
+  const anterior = item[campo] || "";
+  if (anterior.trim() === String(novo || "").trim()) return null;
+  return [...(item.edicoes || []), { campo, anterior, por: por || "", data: nowStr() }];
+}
+
+function EditedTag({ item, campo }) {
+  const [open, setOpen] = useS(false);
+  const lista = (item.edicoes || []).filter((e) => e.campo === campo).slice().reverse();
+  if (!lista.length) return null;
+  return (
+    <>
+      <button type="button" className="edited-tag" title="Ver versões anteriores"
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>
+        · editado{lista.length > 1 ? ` (${lista.length}x)` : ""}
+      </button>
+      {open && (
+        <div className="edit-history" style={{ flexBasis: "100%" }}>
+          {lista.map((e, i) => (
+            <div key={i}>
+              <div className="edit-history-meta">Antes da edição de {e.por || "—"} em {fmtDate(e.data)}</div>
+              <p className="edit-history-text">{e.anterior || "(vazio)"}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 /* ════════════════════ CANCELAMENTO ════════════════════ */
 function CancelPanel({ item, currentUser, onUpdate, toast, close }) {
   const [motivo, setMotivo] = useS("");
@@ -1856,7 +1902,7 @@ function ApproverView({ items, currentUser, onUpdate, onDelete, toast }) {
 }
 
 /* ════════════════════ EDITAR CONTEÚDO (autor) ════════════════════ */
-function EditPanel({ item, onUpdate, toast, close }) {
+function EditPanel({ item, currentUser, onUpdate, toast, close }) {
   const editingCorrected = !!item.versaoCorrigida;
   const [f, setF] = useS({
     autor: item.autor || "",
@@ -1883,7 +1929,10 @@ function EditPanel({ item, onUpdate, toast, close }) {
       aprovador: f.aprovador, aprovadorSecundario: f.aprovadorSecundario,
       precisaExterna: f.precisaExterna, contatoExterno: f.contatoExterno.trim(),
     };
-    if (editingCorrected) patch.versaoCorrigida = f.conteudo; else patch.conteudo = f.conteudo;
+    const campoTexto = editingCorrected ? "versaoCorrigida" : "conteudo";
+    patch[campoTexto] = f.conteudo;
+    const edicoes = registrarEdicao(item, campoTexto, f.conteudo, currentUser);
+    if (edicoes) patch.edicoes = edicoes;
     onUpdate(item.id, patch);
     toast("Conteúdo atualizado.", "success");
     close();
@@ -2301,6 +2350,7 @@ function fromDb(r) {
     anexosAprovacao: Array.isArray(r.anexos_aprovacao) ? r.anexos_aprovacao : [],
     notionId: r.notion_id || '',
     cancelamento: r.cancelamento || null,
+    edicoes: Array.isArray(r.edicoes) ? r.edicoes : [],
   };
 }
 
