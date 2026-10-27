@@ -845,7 +845,7 @@ function SubmitView({ currentUser, onCreate, toast }) {
                 <input className="input" value={form.contatoExterno} onChange={(e) => set("contatoExterno")(e.target.value)}
                   placeholder="Nome de quem aprova" />
               </Field>
-              <p className="action-note">A aprovação externa vem <strong>depois</strong> da interna: o conteúdo só vai ao externo quando o aprovador principal aprovar.</p>
+              <p className="action-note">A aprovação externa corre <strong>em paralelo</strong> à interna: você ou o aprovador principal podem registrar o retorno do externo a qualquer momento, direto no card. O conteúdo só fica aprovado quando as duas estiverem concluídas.</p>
             </>
           )}
         </fieldset>
