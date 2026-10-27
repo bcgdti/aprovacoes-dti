@@ -256,8 +256,20 @@ a{ color:var(--accent); }
 .qitem-main{ flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
 .qitem-top{ display:flex; align-items:center; gap:9px; }
 .qitem-id{ font-family:var(--font-d); font-size:12px; font-weight:700; color:var(--ink-3); letter-spacing:.02em; }
-.qitem-title{ font-family:var(--font-d); font-size:16px; font-weight:600; letter-spacing:-.01em; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.qitem-title{ font-family:var(--font-d); font-size:16px; font-weight:600; letter-spacing:-.01em; color:var(--ink); line-height:1.35; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.qitem-meta{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; font-size:13px; color:var(--ink-2); }
+.qitem-pub{ display:inline-flex; align-items:center; gap:4px; font-weight:700; color:var(--accent); }
+.qitem-pub.is-urgente{ color:#C1450F; }
 .qitem-side{ display:flex; align-items:center; gap:14px; flex-shrink:0; }
+.qitem-status{ display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+.qitem-ext{ font-size:11.5px; font-weight:700; color:#0A6F82; background:#E3F6FA; padding:2px 9px; border-radius:999px; white-space:nowrap; }
+.qitem-com{ display:flex; align-items:center; gap:8px; width:150px; font-size:13px; color:var(--ink-2); }
+.qitem-com-text{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.qitem-com-text b{ color:var(--ink); font-weight:600; }
+.qitem-ext.is-warn{ color:#C1450F; background:#FDEAE0; }
+.qitem-ext-av{ width:26px; height:26px; flex:0 0 26px; border-radius:50%; background:#E3F6FA; color:#0A6F82; display:flex; align-items:center; justify-content:center; }
+.stat-caption{ margin:0 0 18px; font-size:13px; color:var(--ink-2); }
+.stat-caption b{ color:var(--ink); }
 .qitem-link-btn{ background:none; border:none; cursor:pointer; padding:4px; border-radius:6px; color:var(--ink-3); display:flex; align-items:center; opacity:0; transition:opacity .15s; }
 .qitem.is-open .qitem-link-btn{ opacity:1; }
 .qitem-link-btn:hover{ color:var(--accent); background:var(--accent-soft); }
@@ -309,7 +321,7 @@ a{ color:var(--accent); }
 .edit-history{ order:99; margin-top:8px; border-left:2px solid var(--line); padding:2px 0 2px 12px; display:flex; flex-direction:column; gap:10px; font-weight:400; text-transform:none; letter-spacing:0; }
 .edit-history-meta{ font-size:12px; color:var(--ink-3); font-weight:600; margin-bottom:2px; }
 .edit-history-text{ margin:0; font-size:13.5px; line-height:1.5; color:var(--ink-2); white-space:pre-wrap; }
-.qitem:not(.is-open) .qitem-link-btn{ visibility:hidden; }
+.qitem:not(.is-open) .qitem-link-btn{ display:none; }
 
 /* ───── Card: faixa de próximo passo ───── */
 .detail-band{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; margin-top:16px; padding:14px 18px; border-radius:var(--radius-sm); border:1px solid var(--line); background:var(--surface-2); }
@@ -443,6 +455,9 @@ a{ color:var(--accent); }
   .qitem-head{ padding:15px 16px; gap:11px; flex-wrap:wrap; }
   .qitem-title{ white-space:normal; }
   .qitem-side{ width:100%; padding-left:34px; justify-content:flex-start; }
+  .qitem-side{ flex-wrap:wrap; row-gap:8px; }
+  .qitem-status{ flex-direction:row; align-items:center; }
+  .qitem-com{ width:auto; min-width:0; }
   .detail{ padding:4px 16px 20px; }
   .action-row{ justify-content:stretch; }
   .action-row .btn{ flex:1; justify-content:center; }
@@ -1916,9 +1931,35 @@ function Meta({ label, children }) {
 }
 
 /* ════════════════════ ITEM DA FILA (accordion) ════════════════════ */
-function QueueItem({ item, currentUser, onUpdate, onDelete, toast, open, onToggle }) {
-  const ch = CHANNELS[item.canal] || CHANNELS["Outro"];
+const STATUS_ANDAMENTO = ["Aguardando aprovação", "Aguardando aprovação externa", "Ajustes solicitados"];
+const externaPendente = (it) => it.precisaExterna && it.statusExterno !== "Aprovado" && it.status !== "Cancelado";
+const emAndamento = (it) => STATUS_ANDAMENTO.includes(it.status) || externaPendente(it);
 
+// Com quem o card está agora: quem precisa agir para ele andar.
+function comQuem(it) {
+  if (it.status === "Ajustes solicitados") return it.autor;
+  if (it.status === "Aguardando aprovação") return it.aprovador;
+  if ((it.status === "Aguardando aprovação externa" || it.status === "Aprovado") && externaPendente(it) && it.statusExterno !== "Com ressalvas")
+    return it.contatoExterno || "externo";
+  return null;
+}
+// O contato externo é texto livre: na lista, só aparece inteiro quando é curto.
+const contatoCurto = (c) => c && c.length <= 22 ? c : "externo";
+
+// Data de publicação: sempre em destaque; urgente (vermelho) a 3 dias ou menos, enquanto não estiver aprovado.
+function publicacao(it) {
+  const d = parseData(it.dataPostagem);
+  if (!d) return null;
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const dias = Math.round((d - hoje) / 86400000);
+  const pendente = it.status !== "Aprovado" && it.status !== "Cancelado";
+  const urgente = pendente && dias <= 3;
+  let sufixo = "";
+  if (urgente) sufixo = dias < 0 ? " · atrasado" : dias === 0 ? " · hoje" : dias === 1 ? " · amanhã" : ` · em ${dias} dias`;
+  return { texto: "Publicar em " + fmtDate(it.dataPostagem) + sufixo, urgente };
+}
+
+function QueueItem({ item, currentUser, onUpdate, onDelete, toast, open, onToggle }) {
   function copyLink(e) {
     e.stopPropagation();
     const url = window.location.origin + window.location.pathname + "?id=" + encodeURIComponent(item.id);
@@ -1928,22 +1969,35 @@ function QueueItem({ item, currentUser, onUpdate, onDelete, toast, open, onToggl
     );
   }
 
+  const com = comQuem(item);
+  const pub = publicacao(item);
+  const extPend = item.status === "Aprovado" && externaPendente(item);
+  const comExterno = !!com && (item.status === "Aguardando aprovação externa" || extPend);
+
   return (
     <div className={"qitem" + (open ? " is-open" : "")} data-qitem-id={item.id}>
       <button className="qitem-head" onClick={onToggle}>
         <span className="qitem-chevron"><Icon name="chevron" size={18} /></span>
         <span className="qitem-main">
-          <span className="qitem-top">
-            <span className="qitem-id">{item.id}</span>
-            <Chip icon={ch.icon}>{item.canal}</Chip>
-            {item.dataEnvio && <span style={{fontSize:12,color:"var(--ink-3)",fontWeight:400}}>Enviado em {fmtDate(item.dataEnvio)}</span>}
-            {item.dataPostagem && <span style={{fontSize:12,color:"var(--accent)",fontWeight:600}}>📅 Publicar em {fmtDate(item.dataPostagem)}</span>}
-          </span>
           <span className="qitem-title">{item.titulo}</span>
+          <span className="qitem-meta">
+            <span>{item.id}</span>
+            <span aria-hidden="true">·</span><span>{item.canal}</span>
+            {item.dataEnvio && <><span aria-hidden="true">·</span><span>enviado {fmtDate(item.dataEnvio)}</span></>}
+            {pub && <><span aria-hidden="true">·</span><span className={"qitem-pub" + (pub.urgente ? " is-urgente" : "")}><Icon name="calendar" size={13} />{pub.texto}</span></>}
+          </span>
         </span>
         <span className="qitem-side">
-          <StatusBadge status={item.status} />
-          <span className="qitem-approver" title={"Enviado por: " + item.autor}><Avatar name={item.autor} size={26} /></span>
+          <span className="qitem-status">
+            <StatusBadge status={item.status} />
+            {extPend && (item.statusExterno === "Com ressalvas"
+              ? <span className="qitem-ext is-warn">externa com ressalvas</span>
+              : <span className="qitem-ext">externa pendente</span>)}
+          </span>
+          <span className="qitem-com" title={com ? "Com quem está agora: " + com : "Enviado por: " + item.autor}>
+            {comExterno ? <span className="qitem-ext-av"><Icon name="globe" size={14} /></span> : <Avatar name={com || item.autor} size={26} />}
+            <span className="qitem-com-text">{com ? <>com <b>{comExterno ? contatoCurto(com) : com}</b></> : <>de {item.autor}</>}</span>
+          </span>
           <button className="qitem-link-btn" title="Copiar link direto" onClick={copyLink}>
             <Icon name="link" size={15} />
           </button>
@@ -1955,34 +2009,50 @@ function QueueItem({ item, currentUser, onUpdate, onDelete, toast, open, onToggl
 }
 
 /* ════════════════════ FILA DE APROVAÇÃO ════════════════════ */
+const ORDENACOES = ["Data de publicação", "Envio mais recente"];
+
 function QueueView({ items, currentUser, onUpdate, onDelete, toast, initialOpenId }) {
+  // fStatus vazio = "em andamento" (os três primeiros quadros, mais aprovados que esperam a externa).
   const [fStatus, setFStatus] = useS("");
   const [fCanal, setFCanal] = useS("");
-  const [fAprov, setFAprov] = useS("");
-  const [fAutor, setFAutor] = useS("");
+  const [fPessoa, setFPessoa] = useS("");
+  const [fOrdem, setFOrdem] = useS("");
   const [q, setQ] = useS("");
   const [openId, setOpenId] = useS(initialOpenId || null);
 
-  // Autores únicos presentes nos dados (inclui membros inativos que já enviaram)
-  const autoresUnicos = useMemo(() => {
-    const set = new Set(items.map(it => it.autor).filter(Boolean));
+  // Pessoas presentes nos dados (inclui membros inativos que já enviaram ou aprovaram)
+  const pessoas = useMemo(() => {
+    const set = new Set([...TEAM_ATIVOS, ...items.flatMap(it => [it.autor, it.aprovador, it.aprovadorSecundario])].filter(Boolean));
     return [...set].sort();
   }, [items]);
 
-  const externaAtiva = (it) => it.precisaExterna && it.statusExterno !== "Aprovado" && it.status !== "Cancelado";
+  // Sem ordenação escolhida: pendentes pela publicação mais próxima, os demais pelo envio mais recente.
+  const ordem = fOrdem || (!fStatus || STATUS_ANDAMENTO.includes(fStatus) ? "Data de publicação" : "Envio mais recente");
 
-  const filtered = useMemo(() => items.filter((it) => {
-    // Cancelados só aparecem filtrando por eles, buscando ou abrindo o link direto do card.
-    if (it.status === "Cancelado" && fStatus !== "Cancelado" && !q && it.id !== initialOpenId) return false;
-    const matchStatus = !fStatus ||
-      it.status === fStatus ||
-      (fStatus === "Aguardando aprovação externa" && externaAtiva(it));
-    return matchStatus &&
-      (!fCanal || it.canal === fCanal) &&
-      (!fAprov || it.aprovador === fAprov) &&
-      (!fAutor || it.autor === fAutor) &&
-      (!q || (it.titulo + " " + it.conteudo + " " + it.id + " " + it.autor).toLowerCase().includes(q.toLowerCase()));
-  }), [items, fStatus, fCanal, fAprov, fAutor, q, initialOpenId]);
+  const filtered = useMemo(() => {
+    const lista = items.filter((it) => {
+      if (it.id === initialOpenId) return true;
+      // A busca procura em todos os status; sem busca vale o quadro escolhido.
+      if (!q) {
+        if (!fStatus && !emAndamento(it)) return false;
+        if (fStatus && it.status !== fStatus && !(fStatus === "Aguardando aprovação externa" && externaPendente(it))) return false;
+      }
+      return (!fCanal || it.canal === fCanal) &&
+        (!fPessoa || [it.autor, it.aprovador, it.aprovadorSecundario].includes(fPessoa)) &&
+        (!q || (it.titulo + " " + it.conteudo + " " + it.id + " " + it.autor).toLowerCase().includes(q.toLowerCase()));
+    });
+    const envio = (it) => (parseData(it.dataEnvio) || 0);
+    if (ordem === "Data de publicação") {
+      const pub = (it) => (parseData(it.dataPostagem) || null);
+      return lista.sort((a, b) => {
+        const pa = pub(a), pb = pub(b);
+        if (pa && pb) return pa - pb;
+        if (pa || pb) return pa ? -1 : 1; // sem data vai para o fim
+        return envio(b) - envio(a);
+      });
+    }
+    return lista.sort((a, b) => envio(b) - envio(a));
+  }, [items, fStatus, fCanal, fPessoa, q, ordem, initialOpenId]);
 
   useEffect_(() => {
     if (!initialOpenId) return;
@@ -1998,37 +2068,44 @@ function QueueView({ items, currentUser, onUpdate, onDelete, toast, initialOpenI
     const c = {}; STATUS_ORDER.forEach((s) => c[s] = 0);
     items.forEach((it) => {
       c[it.status]++;
-      if (externaAtiva(it) && it.status !== "Aguardando aprovação externa") c["Aguardando aprovação externa"]++;
+      if (externaPendente(it) && it.status !== "Aguardando aprovação externa") c["Aguardando aprovação externa"]++;
     });
+    c.andamento = items.filter(emAndamento).length;
     return c;
   }, [items]);
+
+  const ativo = (s) => fStatus ? fStatus === s : STATUS_ANDAMENTO.includes(s);
 
   return (
     <div className="view">
       <header className="view-head">
         <h1>Fila de aprovação</h1>
-        <p>Todos os conteúdos em circulação. Clique em um item para ver tudo: conteúdo, pareceres e comentários.</p>
+        <p>Tudo o que está em circulação. Os mais urgentes aparecem primeiro.</p>
       </header>
 
-      <div className="stat-row">
-        {STATUS_ORDER.map((s) => (
-          <button key={s} className={"stat" + (fStatus === s ? " is-active" : "")}
+      <div className="stat-row" style={{marginBottom:8}}>
+        {[...STATUS_ANDAMENTO, ...STATUS_ORDER.filter(s => !STATUS_ANDAMENTO.includes(s))].map((s) => (
+          <button key={s} className={"stat" + (ativo(s) ? " is-active" : "")} aria-pressed={ativo(s)}
             onClick={() => setFStatus(fStatus === s ? "" : s)}>
             <span className="stat-num" style={{ color: STATUS[s].color }}>{counts[s]}</span>
             <span className="stat-lab">{STATUS[s].label}</span>
           </button>
         ))}
       </div>
+      <p className="stat-caption">
+        {q ? <>Buscando em <b>todos os status</b>.</>
+          : fStatus ? <>Mostrando só <b>{STATUS[fStatus].label.toLowerCase()}</b>. <button className="tl-link" onClick={() => setFStatus("")}>Voltar para em andamento</button></>
+          : <>Mostrando os <b>{counts.andamento} em andamento</b> (os três primeiros quadros, incluindo aprovados que ainda esperam a externa). Clique num quadro para ver só aquele status.</>}
+      </p>
 
-      <div className="filters" style={{gridTemplateColumns:"1.6fr 1fr 1fr 1fr 1fr"}}>
+      <div className="filters">
         <div className="search">
           <Icon name="filter" size={15} />
-          <input className="search-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título, autor, conteúdo…" />
+          <input className="search-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título, ID, autor ou conteúdo…" />
         </div>
-        <Select value={fStatus} onChange={setFStatus} options={STATUS_ORDER} placeholder="Todos os status" />
-        <Select value={fCanal} onChange={setFCanal} options={Object.keys(CHANNELS)} placeholder="Todos os canais" />
-        <Select value={fAutor} onChange={setFAutor} options={autoresUnicos} placeholder="Todos os autores" />
-        <Select value={fAprov} onChange={setFAprov} options={TEAM_ATIVOS} placeholder="Todos os aprovadores" />
+        <Select value={fCanal} onChange={setFCanal} options={Object.keys(CHANNELS)} placeholder="Canal" />
+        <Select value={fPessoa} onChange={setFPessoa} options={pessoas} placeholder="Pessoa" />
+        <Select value={fOrdem} onChange={setFOrdem} options={ORDENACOES} placeholder={"Ordenar: " + (ordem === "Data de publicação" ? "publicação" : "envio")} />
       </div>
 
       <div className="qlist">
