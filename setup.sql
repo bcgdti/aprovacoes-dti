@@ -73,3 +73,8 @@ create policy "conteudos_delete" on conteudos for delete to anon using (true);
 
 create policy "equipe_select"    on equipe  for select to anon using (true);
 create policy "config_select"    on config  for select to anon using (true);
+
+-- 5. Cancelamento de conteúdo (2026-10-27)
+-- Guarda motivo, card substituto, comentário, quem cancelou, data e status anterior.
+-- Status "Cancelado" usa a coluna status (text) que já existe.
+alter table conteudos add column if not exists cancelamento jsonb default null;

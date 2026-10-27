@@ -415,6 +415,8 @@ let TEAM_ATIVOS = TEAM.filter(n => !TEAM_INATIVOS.includes(n));
 const USUARIO_ANTERIORES = "Usuários anteriores";
 const USUARIO_EXTERNO    = "Visitante";
 const ADMIN_EMAILS = ["alice.goncalves@dtidigital.com.br", "somosdti@dtidigital.com.br", "acessosmkt@dtidigital.com.br"];
+// Perfis master: podem cancelar/reabrir qualquer conteúdo, além de autor e aprovador principal.
+const PERFIS_MASTER = ["Alice"];
 
 // ── Status do fluxo ─────────────────────────────────────────────
 // (check de IA feito ANTES do envio) Aguardando aprovação → Aprovado / Ajustes solicitados
@@ -443,8 +445,15 @@ const STATUS = {
     bg: "#FDEAE0",
     desc: "Precisa de alterações",
   },
+  "Cancelado": {
+    label: "Cancelado",
+    color: "#6B7478",
+    bg: "#ECEEEF",
+    desc: "Não vai mais ser publicado ou virou outro conteúdo",
+  },
 };
-const STATUS_ORDER = ["Aguardando aprovação", "Aguardando aprovação externa", "Aprovado", "Ajustes solicitados"];
+const STATUS_ORDER = ["Aguardando aprovação", "Aguardando aprovação externa", "Aprovado", "Ajustes solicitados", "Cancelado"];
+const MOTIVOS_CANCELAMENTO = ["Não vai mais existir", "Virou outro conteúdo"];
 
 // ── Canais ──────────────────────────────────────────────────────
 const CHANNELS = {
@@ -1327,9 +1336,12 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
   const isApprover = item.aprovador === currentUser;
   const isSecondary = item.aprovadorSecundario === currentUser;
   const isAuthor = item.autor === currentUser;
+  const isCancelado = item.status === "Cancelado";
+  const canCancel = isAuthor || isApprover || PERFIS_MASTER.includes(currentUser);
   const [editing, setEditing] = useS(false);
   const [confirmDel, setConfirmDel] = useS(false);
   const [confirmAprov, setConfirmAprov] = useS(false);
+  const [cancelling, setCancelling] = useS(false);
   const [editingComment, setEditingComment] = useS(null);
   const [editCommentDraft, setEditCommentDraft] = useS("");
   const [notionIdDraft, setNotionIdDraft] = useS(item.notionId || "");
@@ -1371,6 +1383,12 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
     setConfirmAprov(false);
   }
 
+  function reabrir() {
+    const volta = (item.cancelamento && item.cancelamento.statusAnterior) || "Aguardando aprovação";
+    onUpdate(item.id, { status: volta, cancelamento: null });
+    toast(`Conteúdo reaberto — voltou para "${volta}".`, "success");
+  }
+
   return (
     <div className="detail">
       <div className="detail-grid">
@@ -1408,15 +1426,22 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
         <CommentableContent item={item} currentUser={currentUser} onUpdate={onUpdate} versao="corrigida" />
       )}
 
-      {isAuthor && !editing && !confirmDel && !confirmAprov && (
+      {(isAuthor || canCancel) && !editing && !confirmDel && !confirmAprov && !cancelling && (
         <div className="action-row" style={{ justifyContent: "flex-start" }}>
-          <Button variant="outline" size="sm" icon="edit" onClick={() => setEditing(true)}>Editar</Button>
-          {item.status !== "Aprovado" && (
+          {isAuthor && <Button variant="outline" size="sm" icon="edit" onClick={() => setEditing(true)}>Editar</Button>}
+          {isAuthor && item.status !== "Aprovado" && !isCancelado && (
             <Button variant="outline" size="sm" icon="check2" onClick={() => setConfirmAprov(true)}>Marcar como aprovado</Button>
           )}
-          <Button variant="danger-soft" size="sm" icon="x" onClick={() => setConfirmDel(true)}>Excluir</Button>
+          {canCancel && item.status !== "Aprovado" && !isCancelado && (
+            <Button variant="outline" size="sm" icon="x" onClick={() => setCancelling(true)}>Cancelar conteúdo</Button>
+          )}
+          {canCancel && isCancelado && (
+            <Button variant="outline" size="sm" icon="refresh" onClick={reabrir}>Reabrir</Button>
+          )}
+          {isAuthor && <Button variant="danger-soft" size="sm" icon="x" onClick={() => setConfirmDel(true)}>Excluir</Button>}
         </div>
       )}
+      {cancelling && <CancelPanel item={item} currentUser={currentUser} onUpdate={onUpdate} toast={toast} close={() => setCancelling(false)} />}
       {confirmAprov && (
         <div className="action-block is-warn">
           <div className="action-head"><Icon name="check2" size={16} /><strong>Marcar como aprovado?</strong></div>
@@ -1522,7 +1547,7 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
         <HistoricoAjustes historico={item.historicoAjustes} />
       )}
 
-      {item.precisaExterna && (
+      {item.precisaExterna && !(isCancelado && !item.statusExterno) && (
         <div className={"comment-block" + (item.statusExterno === "Com ressalvas" ? " is-warn" : "")}>
           <span className="block-label">
             <Icon name="globe" size={14} /> Aprovação externa — {item.contatoExterno || "contato não informado"}
@@ -1576,17 +1601,72 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
       {item.status === "Aprovado" && (
         <div className="info-line ok"><Icon name="check2" size={15} /> Aprovado em {fmtDate(item.dataDecisao)} — liberado para publicação.</div>
       )}
+      {isCancelado && <CancelInfo item={item} />}
 
       {/* Aprovação externa — independente, sempre visível quando necessário */}
-      {item.precisaExterna && (isAuthor || isApprover) && (
+      {item.precisaExterna && !isCancelado && (isAuthor || isApprover) && (
         <ExternalPanel item={item} onUpdate={onUpdate} toast={toast} />
       )}
-      {item.precisaExterna && !isAuthor && !isApprover && !item.statusExterno && (
+      {item.precisaExterna && !isCancelado && !isAuthor && !isApprover && !item.statusExterno && (
         <div className="info-line"><Icon name="globe" size={15} /> Aprovação externa pendente com: {item.contatoExterno || "—"}.</div>
       )}
     </div>
   );
 }
+/* ════════════════════ CANCELAMENTO ════════════════════ */
+function CancelPanel({ item, currentUser, onUpdate, toast, close }) {
+  const [motivo, setMotivo] = useS("");
+  const [substitutoId, setSubstitutoId] = useS("");
+  const [comentario, setComentario] = useS("");
+
+  function confirmar() {
+    const sub = motivo === "Virou outro conteúdo" ? substitutoId.trim().toUpperCase() : "";
+    onUpdate(item.id, {
+      status: "Cancelado",
+      cancelamento: { motivo, substitutoId: sub, comentario: comentario.trim(), por: currentUser, data: nowStr(), statusAnterior: item.status },
+    });
+    toast("Conteúdo cancelado. Ele saiu das pendências.", "success");
+    close();
+  }
+
+  return (
+    <div className="action-block is-warn">
+      <div className="action-head"><Icon name="x" size={16} /><strong>Cancelar este conteúdo?</strong></div>
+      <p className="action-note">O conteúdo sai das pendências e da fila padrão, mas o histórico fica guardado. Dá para reabrir depois.</p>
+      <div className="seg">
+        {MOTIVOS_CANCELAMENTO.map((m) => (
+          <button type="button" key={m} className={"seg-btn" + (motivo === m ? " is-active" : "")} onClick={() => setMotivo(m)}>{m}</button>
+        ))}
+      </div>
+      {motivo === "Virou outro conteúdo" && (
+        <input className="input" value={substitutoId} onChange={(e) => setSubstitutoId(e.target.value)}
+          placeholder="ID do card novo (ex.: C-345) — opcional" style={{ maxWidth: 320 }} />
+      )}
+      <textarea className="input textarea" rows={2} value={comentario} onChange={(e) => setComentario(e.target.value)}
+        placeholder="Comentário (opcional)" />
+      <div className="action-row">
+        <Button variant="ghost" size="sm" onClick={close}>Voltar</Button>
+        <Button variant="danger" size="sm" icon="x" disabled={!motivo} onClick={confirmar}>Cancelar conteúdo</Button>
+      </div>
+    </div>
+  );
+}
+
+function CancelInfo({ item }) {
+  const c = item.cancelamento || {};
+  return (
+    <div className="comment-block">
+      <div className="info-line" style={{ padding: 0 }}>
+        <Icon name="x" size={15} /> Cancelado{c.data ? " em " + fmtDate(c.data) : ""}{c.por ? " por " + c.por : ""}{c.motivo ? " — " + c.motivo : ""}.
+      </div>
+      {c.substitutoId && (
+        <p>Substituído por <a href={"?id=" + encodeURIComponent(c.substitutoId)} style={{ fontWeight: 700, color: "var(--accent)" }}>{c.substitutoId}</a></p>
+      )}
+      {c.comentario && <p>{c.comentario}</p>}
+    </div>
+  );
+}
+
 function Meta({ label, children }) {
   return <div className="meta"><span className="meta-label">{label}</span><span className="meta-val">{children}</span></div>;
 }
@@ -1645,9 +1725,11 @@ function QueueView({ items, currentUser, onUpdate, onDelete, toast, initialOpenI
     return [...set].sort();
   }, [items]);
 
-  const externaAtiva = (it) => it.precisaExterna && it.statusExterno !== "Aprovado";
+  const externaAtiva = (it) => it.precisaExterna && it.statusExterno !== "Aprovado" && it.status !== "Cancelado";
 
   const filtered = useMemo(() => items.filter((it) => {
+    // Cancelados só aparecem filtrando por eles, buscando ou abrindo o link direto do card.
+    if (it.status === "Cancelado" && fStatus !== "Cancelado" && !q && it.id !== initialOpenId) return false;
     const matchStatus = !fStatus ||
       it.status === fStatus ||
       (fStatus === "Aguardando aprovação externa" && externaAtiva(it));
@@ -1656,7 +1738,7 @@ function QueueView({ items, currentUser, onUpdate, onDelete, toast, initialOpenI
       (!fAprov || it.aprovador === fAprov) &&
       (!fAutor || it.autor === fAutor) &&
       (!q || (it.titulo + " " + it.conteudo + " " + it.id + " " + it.autor).toLowerCase().includes(q.toLowerCase()));
-  }), [items, fStatus, fCanal, fAprov, fAutor, q]);
+  }), [items, fStatus, fCanal, fAprov, fAutor, q, initialOpenId]);
 
   useEffect_(() => {
     if (!initialOpenId) return;
@@ -2218,6 +2300,7 @@ function fromDb(r) {
     imagensAjuste: Array.isArray(r.imagens_ajuste) ? r.imagens_ajuste : [],
     anexosAprovacao: Array.isArray(r.anexos_aprovacao) ? r.anexos_aprovacao : [],
     notionId: r.notion_id || '',
+    cancelamento: r.cancelamento || null,
   };
 }
 
@@ -2286,6 +2369,7 @@ function nowStr() {
 
 // ── Decide o rótulo da notificação a partir do que mudou ─────────
 function updateLabel(patch) {
+  if (patch.cancelamento !== undefined) return ''; // cancelar/reabrir não notifica
   if (patch.statusExterno === 'Aprovado') return 'Aprovação externa concluída';
   if (patch.statusExterno === 'Com ressalvas') return 'Ajustes solicitados (aprovação externa)';
   if (patch.status === 'Aguardando aprovação externa') return 'Aprovado internamente — aguardando externa';
