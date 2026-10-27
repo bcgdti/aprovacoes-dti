@@ -119,6 +119,8 @@ a{ color:var(--accent); }
 .links-org-qtd{ font-size:12.5px; color:var(--ink-2); min-width:56px; text-align:right; }
 .links-org-nova{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 .links-org-nova .input{ max-width:280px; }
+.links-cat-nova{ display:flex; gap:6px; align-items:center; }
+.links-cat-nova .input{ flex:1; min-width:0; }
 .cc-note-x:disabled{ opacity:.35; cursor:not-allowed; background:transparent; }
 .link-card-a{ display:flex; flex-direction:column; gap:4px; padding:14px 16px; color:var(--ink); text-decoration:none; min-height:100%; box-sizing:border-box; }
 .link-card-t{ display:flex; align-items:center; gap:6px; font-weight:700; font-size:15px; padding-right:52px; }
@@ -2209,9 +2211,9 @@ function ApproverView({ items, currentUser, onUpdate, onDelete, toast, irParaFil
     (it.aprovador === currentUser || (it.aprovadorSecundario === currentUser && !it.parecerSecundario)));
   const aguardandoExterno = items.filter((it) => it.aprovador === currentUser && externaPendente(it) &&
     it.statusExterno !== "Com ressalvas" && (it.status === "Aguardando aprovação externa" || it.status === "Aprovado"))
-    .sort(porData("dataDecisao"));
+    .sort(porData("dataDecisao", true)); // mais recentes primeiro
   const aguardandoAutor = items.filter((it) => it.aprovador === currentUser && it.status === "Ajustes solicitados")
-    .sort(porData("dataDecisao"));
+    .sort(porData("dataDecisao", true)); // mais recentes primeiro
   const decididos = items.filter((it) => it.aprovador === currentUser && it.status === "Aprovado" && !externaPendente(it))
     .sort(porData("dataDecisao", true)).slice(0, 5);
   const [openId, setOpenId] = useS(depende[0] ? depende[0].id : null);
@@ -2549,6 +2551,7 @@ function LinksView({ podeEditar, toast }) {
   const [organizar, setOrganizar] = useS(false);
   const [novaCat, setNovaCat] = useS("");
   const [nomes, setNomes] = useS({});        // rascunho de nome por categoria (modo organizar)
+  const [catNova, setCatNova] = useS(false); // formulário de link digitando uma categoria nova
 
   async function carregar() {
     const [{ data, error }, rc] = await Promise.all([
@@ -2595,6 +2598,7 @@ function LinksView({ podeEditar, toast }) {
 
   function abrir(link) {
     setEditando(link ? link.id : "novo");
+    setCatNova(false);
     setDraft(link ? { titulo: link.titulo, url: link.url, descricao: link.descricao || "", categoria: link.categoria || "Geral" } : LINK_VAZIO);
   }
 
@@ -2703,9 +2707,19 @@ function LinksView({ podeEditar, toast }) {
       </div>
       <div className="form-grid">
         <Field label="Descrição" hint="Opcional, uma linha"><input className="input" value={draft.descricao} onChange={set("descricao")} placeholder="Para que serve" /></Field>
-        <Field label="Categoria" hint="Escolha ou digite uma nova">
-          <input className="input" list="links-categorias" value={draft.categoria} onChange={set("categoria")} />
-          <datalist id="links-categorias">{ordenadas.map(c => <option key={c.nome} value={c.nome} />)}</datalist>
+        <Field label="Categoria" hint={catNova ? "Digite o nome da nova categoria" : null}>
+          {catNova ? (
+            <div className="links-cat-nova">
+              <input className="input" value={draft.categoria} onChange={set("categoria")} placeholder="Nome da nova categoria" autoFocus />
+              <Button variant="ghost" size="sm" onClick={() => { setCatNova(false); setDraft(d => ({ ...d, categoria: (ordenadas[0] || {}).nome || "Geral" })); }}>Voltar à lista</Button>
+            </div>
+          ) : (
+            // Lista com todas as categorias (o datalist do navegador filtrava pelo texto já digitado).
+            <Select value={draft.categoria}
+              onChange={(v) => { if (v === "__nova__") { setCatNova(true); setDraft(d => ({ ...d, categoria: "" })); } else setDraft(d => ({ ...d, categoria: v })); }}
+              options={[...ordenadas.map(c => c.nome), ...(draft.categoria && !ordenadas.some(c => c.nome === draft.categoria) ? [draft.categoria] : []),
+                { value: "__nova__", label: "+ Nova categoria…" }]} />
+          )}
         </Field>
       </div>
       <div className="action-row">
