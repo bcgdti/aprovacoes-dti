@@ -268,6 +268,24 @@ a{ color:var(--accent); }
 .qitem-com-text b{ color:var(--ink); font-weight:600; }
 .qitem-ext.is-warn{ color:#C1450F; background:#FDEAE0; }
 .qitem-ext-av{ width:26px; height:26px; flex:0 0 26px; border-radius:50%; background:#E3F6FA; color:#0A6F82; display:flex; align-items:center; justify-content:center; }
+
+/* ───── Painel e Meus envios: seções e lista compacta ───── */
+.painel-sec{ display:flex; flex-direction:column; gap:12px; margin-bottom:30px; }
+.painel-h{ margin:0; font-family:var(--font-d); font-size:18px; font-weight:700; letter-spacing:-.01em; }
+.painel-vazio{ margin:0; display:flex; align-items:center; gap:9px; font-size:14px; color:var(--ink-2); }
+.painel-vazio svg{ color:#0E8A5F; }
+.clist{ margin:0; padding:0; list-style:none; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); }
+.citem + .citem{ border-top:1px solid var(--line-2); }
+.citem-head{ display:flex; align-items:center; gap:14px; width:100%; border:none; background:transparent; padding:12px 18px; text-align:left; font:inherit; color:var(--ink); cursor:pointer; }
+.citem-head:hover{ background:var(--surface-2); }
+.citem-title{ flex:1 1 auto; min-width:0; font-size:14.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.citem-info{ font-size:13px; color:var(--ink-2); white-space:nowrap; }
+.citem-dias{ font-size:12.5px; font-weight:700; white-space:nowrap; padding:3px 9px; border-radius:999px; color:var(--ink-2); background:#F1F2F2; }
+.citem-dias.is-velho{ color:#C1450F; background:#FDEAE0; }
+.citem-chev{ display:flex; color:var(--ink-3); transform:rotate(-90deg); transition:.18s; }
+.citem.is-open .citem-chev{ transform:none; color:var(--accent); }
+.citem.is-open{ background:var(--surface); }
+@media (max-width: 640px){ .citem-info{ display:none; } .citem-head{ gap:10px; padding:12px 14px; } }
 .stat-caption{ margin:0 0 18px; font-size:13px; color:var(--ink-2); }
 .stat-caption b{ color:var(--ink); }
 .qitem-link-btn{ background:none; border:none; cursor:pointer; padding:4px; border-radius:6px; color:var(--ink-3); display:flex; align-items:center; opacity:0; transition:opacity .15s; }
@@ -1996,7 +2014,7 @@ function QueueItem({ item, currentUser, onUpdate, onDelete, toast, open, onToggl
           </span>
           <span className="qitem-com" title={com ? "Com quem está agora: " + com : "Enviado por: " + item.autor}>
             {comExterno ? <span className="qitem-ext-av"><Icon name="globe" size={14} /></span> : <Avatar name={com || item.autor} size={26} />}
-            <span className="qitem-com-text">{com ? <>com <b>{comExterno ? contatoCurto(com) : com}</b></> : <>de {item.autor}</>}</span>
+            <span className="qitem-com-text">{com ? <>com <b>{comExterno ? contatoCurto(com) : (com === currentUser ? "você" : com)}</b></> : <>de {item.autor === currentUser ? "você" : item.autor}</>}</span>
           </span>
           <button className="qitem-link-btn" title="Copiar link direto" onClick={copyLink}>
             <Icon name="link" size={15} />
@@ -2119,58 +2137,87 @@ function QueueView({ items, currentUser, onUpdate, onDelete, toast, initialOpenI
   );
 }
 
+/* ════════════════════ LISTA COMPACTA (Painel e Meus envios) ════════════════════ */
+// Linha de uma linha só; ao clicar, abre o card completo logo abaixo.
+function CompactItem({ item, currentUser, onUpdate, onDelete, toast, open, onToggle, info, dias }) {
+  const com = comQuem(item);
+  const ext = !!com && (item.status === "Aguardando aprovação externa" || (item.status === "Aprovado" && externaPendente(item)));
+  return (
+    <li className={"citem" + (open ? " is-open" : "")} data-qitem-id={item.id}>
+      <button className="citem-head" onClick={onToggle} aria-expanded={open}
+        title={com ? "Com quem está agora: " + com : "Enviado por: " + item.autor}>
+        {ext ? <span className="qitem-ext-av"><Icon name="globe" size={14} /></span> : <Avatar name={com || item.autor} size={26} />}
+        <span className="citem-title">{item.titulo}</span>
+        {info && <span className="citem-info">{info}</span>}
+        {dias != null && <span className={"citem-dias" + (dias >= 14 ? " is-velho" : "")}>{dias <= 0 ? "hoje" : "há " + plural(dias, "dia", "dias")}</span>}
+        <span className="citem-chev"><Icon name="chevron" size={16} /></span>
+      </button>
+      {open && <ItemDetail item={item} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast} />}
+    </li>
+  );
+}
+
+const porData = (campo, desc) => (a, b) => {
+  const x = parseData(a[campo]) || 0, y = parseData(b[campo]) || 0;
+  return desc ? y - x : x - y;
+};
+
 /* ════════════════════ PAINEL DO APROVADOR ════════════════════ */
-function ApproverView({ items, currentUser, onUpdate, onDelete, toast }) {
-  const mine = items.filter((it) => it.aprovador === currentUser && it.status === "Aguardando aprovação");
-  const secondaryPending = items.filter((it) => it.aprovadorSecundario === currentUser && it.status === "Aguardando aprovação" && !it.parecerSecundario);
-  const recent = items.filter((it) => it.aprovador === currentUser && (it.status === "Aprovado" || it.status === "Ajustes solicitados"));
-  const [openId, setOpenId] = useS(mine[0] ? mine[0].id : (secondaryPending[0] ? secondaryPending[0].id : null));
+function ApproverView({ items, currentUser, onUpdate, onDelete, toast, irParaFila }) {
+  // Depende de você: só aprovação e parecer. O que espera o autor ou o externo fica em seções próprias.
+  const depende = items.filter((it) => it.status === "Aguardando aprovação" &&
+    (it.aprovador === currentUser || (it.aprovadorSecundario === currentUser && !it.parecerSecundario)));
+  const aguardandoExterno = items.filter((it) => it.aprovador === currentUser && externaPendente(it) &&
+    it.statusExterno !== "Com ressalvas" && (it.status === "Aguardando aprovação externa" || it.status === "Aprovado"))
+    .sort(porData("dataDecisao"));
+  const aguardandoAutor = items.filter((it) => it.aprovador === currentUser && it.status === "Ajustes solicitados")
+    .sort(porData("dataDecisao"));
+  const decididos = items.filter((it) => it.aprovador === currentUser && it.status === "Aprovado" && !externaPendente(it))
+    .sort(porData("dataDecisao", true)).slice(0, 5);
+  const [openId, setOpenId] = useS(depende[0] ? depende[0].id : null);
+  const props = (it) => ({ item: it, currentUser, onUpdate, onDelete, toast,
+    open: openId === it.id, onToggle: () => setOpenId(openId === it.id ? null : it.id) });
 
   return (
     <div className="view">
       <header className="view-head">
         <h1>Painel do aprovador</h1>
-        <p>Conteúdos aguardando a sua decisão, <strong>{currentUser}</strong>.</p>
+        <p>O que depende de você, <strong>{currentUser}</strong>, e o que você está esperando.</p>
       </header>
 
-      <div className="section-label">
-        Pendentes comigo (principal)
-        <span className="count-pill">{mine.length}</span>
-      </div>
+      <section className="painel-sec">
+        <h2 className="painel-h">Depende de você · {depende.length}</h2>
+        {depende.length === 0
+          ? <p className="painel-vazio"><Icon name="check2" size={16} /> Nenhum conteúdo esperando sua aprovação ou seu parecer.</p>
+          : <div className="qlist">{depende.map((it) => <QueueItem key={it.id} {...props(it)} />)}</div>}
+      </section>
 
-      {mine.length === 0 ? (
-        <div className="empty big"><Icon name="check" size={30} /><p>Tudo em dia! Nenhum conteúdo aguardando sua decisão.</p></div>
-      ) : (
-        <div className="qlist">
-          {mine.map((it) => (
-            <QueueItem key={it.id} item={it} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast}
-              open={openId === it.id} onToggle={() => setOpenId(openId === it.id ? null : it.id)} />
-          ))}
-        </div>
+      {aguardandoExterno.length > 0 && (
+        <section className="painel-sec">
+          <h2 className="painel-h">Você aprovou, aguardando o externo · {aguardandoExterno.length}</h2>
+          <ul className="clist">
+            {aguardandoExterno.map((it) => <CompactItem key={it.id} {...props(it)} info={"com " + contatoCurto(it.contatoExterno)} dias={diasDesde(it.dataDecisao)} />)}
+          </ul>
+        </section>
       )}
 
-      {secondaryPending.length > 0 && (
-        <>
-          <div className="section-label muted">Para meu parecer (secundário) <span className="count-pill">{secondaryPending.length}</span></div>
-          <div className="qlist">
-            {secondaryPending.map((it) => (
-              <QueueItem key={it.id} item={it} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast}
-                open={openId === it.id} onToggle={() => setOpenId(openId === it.id ? null : it.id)} />
-            ))}
-          </div>
-        </>
+      {aguardandoAutor.length > 0 && (
+        <section className="painel-sec">
+          <h2 className="painel-h">Você pediu ajustes, aguardando o autor · {aguardandoAutor.length}</h2>
+          <ul className="clist">
+            {aguardandoAutor.map((it) => <CompactItem key={it.id} {...props(it)} info={"com " + it.autor} dias={diasDesde(it.dataDecisao)} />)}
+          </ul>
+        </section>
       )}
 
-      {recent.length > 0 && (
-        <>
-          <div className="section-label muted">Decididos recentemente por mim</div>
-          <div className="qlist">
-            {recent.map((it) => (
-              <QueueItem key={it.id} item={it} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast}
-                open={openId === it.id} onToggle={() => setOpenId(openId === it.id ? null : it.id)} />
-            ))}
-          </div>
-        </>
+      {decididos.length > 0 && (
+        <section className="painel-sec">
+          <h2 className="painel-h">Decididos recentemente</h2>
+          <ul className="clist">
+            {decididos.map((it) => <CompactItem key={it.id} {...props(it)} info={it.id + " · aprovado " + fmtDate(it.dataDecisao)} />)}
+          </ul>
+          {irParaFila && <button className="tl-link" onClick={irParaFila}>Ver todos na fila →</button>}
+        </section>
       )}
     </div>
   );
@@ -2341,6 +2388,8 @@ function MyView({ items, currentUser, onUpdate, onDelete, toast }) {
   const isHistorico = currentUser === USUARIO_ANTERIORES;
   const [fAutorHist, setFAutorHist] = useS("");
   const [openId, setOpenId] = useS(null);
+  const [verTodosAprovados, setVerTodosAprovados] = useS(false);
+  const [verCancelados, setVerCancelados] = useS(false);
 
   if (isHistorico) {
     const histItems = items.filter(it => TEAM_INATIVOS.includes(it.autor));
@@ -2368,41 +2417,67 @@ function MyView({ items, currentUser, onUpdate, onDelete, toast }) {
   }
 
   const mine = items.filter((it) => it.autor === currentUser);
-  const needsAction = mine.filter((it) => it.status === "Ajustes solicitados");
-  const others = mine.filter((it) => it.status !== "Ajustes solicitados");
+  const precisa = mine.filter((it) => it.status === "Ajustes solicitados");
+  const emAprovacao = mine.filter((it) => emAndamento(it) && it.status !== "Ajustes solicitados").sort(porData("dataEnvio", true));
+  const aprovados = mine.filter((it) => it.status === "Aprovado" && !externaPendente(it)).sort(porData("dataEnvio", true));
+  const cancelados = mine.filter((it) => it.status === "Cancelado").sort(porData("dataEnvio", true));
+  const aprovadosVisiveis = verTodosAprovados ? aprovados : aprovados.slice(0, 5);
+  const props = (it) => ({ item: it, currentUser, onUpdate, onDelete, toast,
+    open: openId === it.id, onToggle: () => setOpenId(openId === it.id ? null : it.id) });
+
   return (
     <div className="view">
       <header className="view-head">
         <h1>Meus envios</h1>
-        <p>Tudo o que você já enviou, <strong>{currentUser}</strong>. Abra um item para editar ou enviar a versão corrigida.</p>
+        <p>O que você enviou, <strong>{currentUser}</strong>, separado pelo que precisa de você.</p>
       </header>
 
       {mine.length === 0 && (
         <div className="empty big"><Icon name="send" size={28} /><p>Você ainda não enviou nenhum conteúdo.</p></div>
       )}
 
-      {needsAction.length > 0 && (
-        <>
-          <div className="section-label">Com ajustes solicitados <span className="count-pill">{needsAction.length}</span></div>
-          <div className="qlist">
-            {needsAction.map((it) => (
-              <QueueItem key={it.id} item={it} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast}
-                open={openId === it.id} onToggle={() => setOpenId(openId === it.id ? null : it.id)} />
-            ))}
-          </div>
-        </>
+      {mine.length > 0 && (
+        <section className="painel-sec">
+          <h2 className="painel-h">Precisa de você · {precisa.length}</h2>
+          {precisa.length === 0
+            ? <p className="painel-vazio"><Icon name="check2" size={16} /> Nenhum envio seu com ajustes pedidos.</p>
+            : <div className="qlist">{precisa.map((it) => <QueueItem key={it.id} {...props(it)} />)}</div>}
+        </section>
       )}
 
-      {others.length > 0 && (
-        <>
-          <div className={"section-label" + (needsAction.length ? " muted" : "")}>Todos os envios</div>
-          <div className="qlist">
-            {others.map((it) => (
-              <QueueItem key={it.id} item={it} currentUser={currentUser} onUpdate={onUpdate} onDelete={onDelete} toast={toast}
-                open={openId === it.id} onToggle={() => setOpenId(openId === it.id ? null : it.id)} />
-            ))}
-          </div>
-        </>
+      {emAprovacao.length > 0 && (
+        <section className="painel-sec">
+          <h2 className="painel-h">Em aprovação · {emAprovacao.length}</h2>
+          <div className="qlist">{emAprovacao.map((it) => <QueueItem key={it.id} {...props(it)} />)}</div>
+        </section>
+      )}
+
+      {aprovados.length > 0 && (
+        <section className="painel-sec">
+          <h2 className="painel-h">Aprovados · {aprovados.length}</h2>
+          <ul className="clist">
+            {aprovadosVisiveis.map((it) => <CompactItem key={it.id} {...props(it)}
+              info={it.id + (it.dataPostagem ? " · publicação " + fmtDate(it.dataPostagem) : " · aprovado " + fmtDate(it.dataDecisao))} />)}
+          </ul>
+          {aprovados.length > 5 && (
+            <button className="tl-link" onClick={() => setVerTodosAprovados(!verTodosAprovados)}>
+              {verTodosAprovados ? "Mostrar só os 5 mais recentes" : `Ver todos os aprovados (${aprovados.length})`}
+            </button>
+          )}
+        </section>
+      )}
+
+      {cancelados.length > 0 && (
+        <section className="painel-sec">
+          <button className="tl-link" onClick={() => setVerCancelados(!verCancelados)}>
+            {verCancelados ? "Ocultar cancelados" : `Ver cancelados (${cancelados.length})`}
+          </button>
+          {verCancelados && (
+            <ul className="clist">
+              {cancelados.map((it) => <CompactItem key={it.id} {...props(it)} info={it.id + " · cancelado"} />)}
+            </ul>
+          )}
+        </section>
       )}
     </div>
   );
@@ -2988,7 +3063,7 @@ function App() {
   } else if (route === "meus" && !isExterno) {
     content = <MyView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} />;
   } else if (route === "aprovador" && !isExterno) {
-    content = <ApproverView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} />;
+    content = <ApproverView items={items} currentUser={user} onUpdate={updateItem} onDelete={deleteItem} toast={showToast} irParaFila={() => setRoute("fila")} />;
   } else if (route === "config" && isAdmin) {
     content = <ConfigView toast={showToast} onTeamChange={onTeamChange} />;
   } else {
