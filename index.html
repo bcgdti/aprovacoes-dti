@@ -183,6 +183,18 @@ a{ color:var(--accent); }
 .seg-btn{ border:none; background:transparent; padding:8px 18px; border-radius:calc(var(--radius-sm) - 3px); font-size:14px; font-weight:600; color:var(--ink-2); transition:.13s; }
 .seg-btn.is-active{ background:var(--surface); color:var(--accent); box-shadow:0 1px 3px rgba(1,11,12,.12); }
 .form-actions{ display:flex; justify-content:flex-end; padding-top:4px; }
+.form-blocos{ padding:0; gap:18px; }
+.form-sec{ margin:0; min-width:0; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px var(--pad) 24px; display:flex; flex-direction:column; gap:var(--gap); }
+.form-sec-title{ margin:0; padding:0 4px; font-family:var(--font-d); font-size:17px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+.form-sec-opt{ font-family:var(--font-t); font-size:13.5px; font-weight:500; color:var(--ink-2); }
+fieldset.form-sec > legend{ float:left; width:100%; margin-bottom:2px; }
+fieldset.form-sec > legend + *{ clear:both; }
+.form-sec-ia{ background:color-mix(in srgb, var(--accent) 4%, var(--surface)); border-color:color-mix(in srgb, var(--accent) 22%, var(--line)); gap:12px; }
+.form-sec-ia.is-warn{ border-color:#F0B9A1; }
+.form-footer{ display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:4px 2px 0; }
+.form-footer .btn{ margin-left:auto; }
+.form-autor{ display:flex; align-items:center; gap:8px; font-size:14px; color:var(--ink-2); }
+.form-autor b{ color:var(--ink); }
 
 .select-wrap{ position:relative; }
 .select{ appearance:none; padding-right:36px; cursor:pointer; }
@@ -254,7 +266,6 @@ a{ color:var(--accent); }
 .qitem-chevron{ color:var(--ink-3); transition:.18s; display:flex; }
 .qitem.is-open .qitem-chevron{ transform:rotate(180deg); color:var(--accent); }
 .qitem-main{ flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
-.qitem-top{ display:flex; align-items:center; gap:9px; }
 .qitem-id{ font-family:var(--font-d); font-size:12px; font-weight:700; color:var(--ink-3); letter-spacing:.02em; }
 .qitem-title{ font-family:var(--font-d); font-size:16px; font-weight:600; letter-spacing:-.01em; color:var(--ink); line-height:1.35; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 .qitem-meta{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; font-size:13px; color:var(--ink-2); }
@@ -294,11 +305,6 @@ a{ color:var(--accent); }
 
 /* ───── Detail ───── */
 .detail{ padding:4px 22px 24px; border-top:1px solid var(--line-2); display:flex; flex-direction:column; gap:20px; }
-.detail-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; padding-top:18px; }
-.meta{ display:flex; flex-direction:column; gap:5px; }
-.meta-label{ font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3); font-weight:700; }
-.meta-val{ font-size:14.5px; font-weight:500; }
-.meta-person{ display:inline-flex; align-items:center; gap:8px; font-weight:600; }
 
 .block-label{ display:flex; align-items:center; gap:7px; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3); font-weight:700; margin-bottom:9px; white-space:nowrap; }
 .content-block{ position:relative; }
@@ -396,20 +402,6 @@ a{ color:var(--accent); }
 .ia-result .block-label{ color:#0A7E94; margin-bottom:7px; }
 .ia-result p{ margin:0; font-size:14px; line-height:1.55; color:#16434C; white-space:pre-wrap; }
 
-.comment-block{ background:var(--surface-2); border:1px solid var(--line-2); border-radius:var(--radius-sm); padding:16px 18px; }
-.comment-block.is-warn{ background:#FEF4EF; border-color:#F6D6C4; }
-.comment-block .block-label{ color:var(--ink-2); text-transform:none; letter-spacing:0; font-size:13px; }
-.comment-block.is-warn .block-label{ color:#C1450F; }
-.comment-date{ font-weight:500; color:var(--ink-3); }
-.comment-block p{ margin:0; font-size:14.5px; line-height:1.55; white-space:pre-wrap; }
-.hist-section{ margin-top:4px; }
-.hist-toggle{ background:none; border:none; cursor:pointer; color:var(--ink-3); font-size:13px; display:flex; align-items:center; gap:6px; padding:4px 0; }
-.hist-toggle:hover{ color:var(--ink); }
-.hist-list{ margin-top:8px; display:flex; flex-direction:column; gap:8px; }
-.hist-item{ background:var(--surface-2); border:1px solid var(--line-2); border-radius:var(--radius-sm); padding:12px 14px; opacity:.85; }
-.hist-item-head{ font-size:12.5px; color:var(--ink-3); display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
-.hist-item-head strong{ color:var(--ink-2); }
-.hist-item p{ margin:0; font-size:13.5px; line-height:1.5; white-space:pre-wrap; color:var(--ink-2); }
 
 /* ───── Action blocks ───── */
 .action-block{ background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:18px 20px; display:flex; flex-direction:column; gap:13px; }
@@ -469,7 +461,6 @@ a{ color:var(--accent); }
   .stat-row{ grid-template-columns:repeat(3,1fr); }
   .filters{ grid-template-columns:1fr 1fr; }
   .search{ grid-column:1/-1; }
-  .detail-grid{ grid-template-columns:1fr 1fr; }
   .qitem-head{ padding:15px 16px; gap:11px; flex-wrap:wrap; }
   .qitem-title{ white-space:normal; }
   .qitem-side{ width:100%; padding-left:34px; justify-content:flex-start; }
@@ -768,6 +759,7 @@ function SubmitView({ currentUser, onCreate, toast }) {
   };
   const [form, setForm] = useS(blank);
   const [errors, setErrors] = useS({});
+  const [trocarAutor, setTrocarAutor] = useS(false);
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
   const exigeCheck = form.tipoAprovacao === "Texto" || form.tipoAprovacao === "Ambos";
 
@@ -788,103 +780,118 @@ function SubmitView({ currentUser, onCreate, toast }) {
     if (Object.keys(er).length) return;
     onCreate({ ...form });
     setForm({ ...blank, autor: currentUser });
+    setTrocarAutor(false);
   }
 
   return (
     <div className="view view-narrow">
       <header className="view-head">
         <h1>Enviar conteúdo</h1>
-        <p>Passe o conteúdo pelo check de IA, confirme abaixo e envie para o aprovador escolhido.</p>
+        <p>Três blocos e, se o conteúdo tiver texto, o check de IA no final.</p>
       </header>
 
-      <form className="card form" onSubmit={submit}>
-        <div className="form-grid">
-          <Field label="Autor" required error={errors.autor}>
-            <Select value={form.autor} onChange={set("autor")} options={TEAM_ATIVOS} placeholder="Quem está enviando?" />
-          </Field>
-          <Field label="Canal" required>
-            <Select value={form.canal} onChange={set("canal")} options={Object.keys(CHANNELS)} />
-          </Field>
-        </div>
-
-        <Field label="Tipo de aprovação" required hint={form.tipoAprovacao === "Arte" ? "Arte não exige check de IA" : "O que precisa ser avaliado"}>
-          <div className="seg">
-            {APPROVAL_TYPES.map((t) => (
-              <button type="button" key={t}
-                className={"seg-btn" + (form.tipoAprovacao === t ? " is-active" : "")}
-                onClick={() => set("tipoAprovacao")(t)}>{t}</button>
-            ))}
+      <form className="form form-blocos" onSubmit={submit}>
+        <fieldset className="form-sec">
+          <legend className="form-sec-title">1. O conteúdo</legend>
+          <div className="form-grid">
+            <Field label="O que vai ser avaliado" required hint={form.tipoAprovacao === "Arte" ? "Arte não exige check de IA" : null}>
+              <div className="seg">
+                {APPROVAL_TYPES.map((t) => (
+                  <button type="button" key={t}
+                    className={"seg-btn" + (form.tipoAprovacao === t ? " is-active" : "")}
+                    onClick={() => set("tipoAprovacao")(t)}>{t}</button>
+                ))}
+              </div>
+            </Field>
+            <Field label="Canal" required>
+              <Select value={form.canal} onChange={set("canal")} options={Object.keys(CHANNELS)} />
+            </Field>
           </div>
-        </Field>
 
-        <Field label="Título / descrição" required error={errors.titulo}>
-          <input className="input" value={form.titulo} onChange={(e) => set("titulo")(e.target.value)}
-            placeholder="Ex.: Carrossel — 5 sinais de que sua squad precisa de discovery" />
-        </Field>
+          <Field label="Título" required error={errors.titulo}>
+            <input className="input" value={form.titulo} onChange={(e) => set("titulo")(e.target.value)}
+              placeholder="Ex.: Carrossel — 5 sinais de que sua squad precisa de discovery" />
+          </Field>
 
-        <Field label="Conteúdo" required hint="Texto completo do post, e-mail, página…" error={errors.conteudo}>
-          <textarea className="input textarea" rows={7} value={form.conteudo}
-            onChange={(e) => set("conteudo")(e.target.value)}
-            placeholder="Cole aqui o texto completo do conteúdo." />
-        </Field>
+          <Field label="Texto completo" required hint="Post, e-mail, página…" error={errors.conteudo}>
+            <textarea className="input textarea" rows={7} value={form.conteudo}
+              onChange={(e) => set("conteudo")(e.target.value)}
+              placeholder="Cole aqui o texto completo do conteúdo." />
+          </Field>
 
-        {exigeCheck && (
-          <div className={"action-block" + (errors.checkIA ? " is-warn" : "")}>
-            <div className="action-head"><Icon name="sparkle" size={16} /><strong>Check de IA</strong></div>
-            <p className="action-note">Antes de enviar, copie o conteúdo, cole no Projeto do Claude com as diretrizes da dti e ajuste se necessário.</p>
-            <div className="check-steps">
-              <Button variant="outline" icon="copy" size="sm"
-                onClick={() => copyCheckText(form, toast)}>Copiar conteúdo para check de IA</Button>
-            </div>
-            <label className="cc-check">
-              <input type="checkbox" checked={form.checkIA} onChange={(e) => set("checkIA")(e.target.checked)} />
-              <span>Passei esse conteúdo no check de IA <span className="req">*</span></span>
-            </label>
-            {errors.checkIA && <span className="field-error">{errors.checkIA}</span>}
-          </div>
-        )}
-
-        <div className="form-grid">
-          <Field label="Link de mídia" hint="Opcional — arte, vídeo, Drive…">
+          <Field label="Link da arte ou do arquivo" hint="Opcional — arte, vídeo, Drive…">
             <input className="input" value={form.linkMidia} onChange={(e) => set("linkMidia")(e.target.value)}
               placeholder="https://…" />
           </Field>
-          <Field label="Data de postagem prevista" hint="Opcional">
-            <input className="input" type="date" value={form.dataPostagem}
-              onChange={(e) => set("dataPostagem")(e.target.value)} />
-          </Field>
-          <Field label="ID no Calendário Notion" hint="Opcional — pode colar direto do Notion (ex.: RS-42) ou só o número (ex.: 42)">
-            <input className="input" type="text" value={form.notionId}
-              onChange={(e) => set("notionId")(e.target.value)}
-              placeholder="Ex.: RS-42 ou 42" />
-          </Field>
-        </div>
+        </fieldset>
 
-        <div className="form-grid">
-          <Field label="Aprovador principal" required hint="Quem dá o ok final" error={errors.aprovador}>
-            <Select value={form.aprovador} onChange={set("aprovador")} options={TEAM_ATIVOS} placeholder="Escolha um aprovador" />
-          </Field>
-          <Field label="Aprovador secundário" hint="Opcional — parecer consultivo" error={errors.aprovadorSecundario}>
-            <Select value={form.aprovadorSecundario} onChange={set("aprovadorSecundario")} options={TEAM_ATIVOS} placeholder="Nenhum" />
-          </Field>
-        </div>
-
-        <div className="action-block">
+        <fieldset className="form-sec">
+          <legend className="form-sec-title">2. Quem aprova</legend>
+          <div className="form-grid">
+            <Field label="Aprovador principal" required error={errors.aprovador}>
+              <Select value={form.aprovador} onChange={set("aprovador")} options={TEAM_ATIVOS} placeholder="Escolha um aprovador" />
+            </Field>
+            <Field label="Secundário" hint="Opcional, só parecer" error={errors.aprovadorSecundario}>
+              <Select value={form.aprovadorSecundario} onChange={set("aprovadorSecundario")} options={TEAM_ATIVOS} placeholder="Nenhum" />
+            </Field>
+          </div>
           <label className="cc-check">
             <input type="checkbox" checked={form.precisaExterna} onChange={(e) => set("precisaExterna")(e.target.checked)} />
             <span>Precisa de aprovação externa (cliente, pessoa retratada etc.)</span>
           </label>
           {form.precisaExterna && (
-            <Field label="Contato do aprovador externo" required hint="Nome e contato — ex.: Maria (cliente XPTO), maria@cliente.com" error={errors.contatoExterno}>
-              <input className="input" value={form.contatoExterno} onChange={(e) => set("contatoExterno")(e.target.value)}
-                placeholder="Quem vai aprovar por fora?" />
-            </Field>
+            <>
+              <Field label="Quem aprova por fora" required hint="De preferência só o nome (ex.: Melissa, cliente MRV). É o que aparece nas listas." error={errors.contatoExterno}>
+                <input className="input" value={form.contatoExterno} onChange={(e) => set("contatoExterno")(e.target.value)}
+                  placeholder="Nome de quem aprova" />
+              </Field>
+              <p className="action-note">A aprovação externa vem <strong>depois</strong> da interna: o conteúdo só vai ao externo quando o aprovador principal aprovar.</p>
+            </>
           )}
-          <p className="action-note">A aprovação externa acontece <strong>depois</strong> da aprovação interna. O conteúdo só vai ao externo quando o aprovador principal aprovar.</p>
-        </div>
+        </fieldset>
 
-        <div className="form-actions">
-          <Button variant="primary" icon="send" type="submit">Enviar para a fila</Button>
+        <fieldset className="form-sec">
+          <legend className="form-sec-title">3. Planejamento <span className="form-sec-opt">(opcional)</span></legend>
+          <div className="form-grid">
+            <Field label="Data de publicação prevista">
+              <input className="input" type="date" value={form.dataPostagem}
+                onChange={(e) => set("dataPostagem")(e.target.value)} />
+            </Field>
+            <Field label="ID no Calendário Notion" hint="RS-42 ou só 42">
+              <input className="input" type="text" value={form.notionId}
+                onChange={(e) => set("notionId")(e.target.value)}
+                placeholder="Ex.: RS-42 ou 42" />
+            </Field>
+          </div>
+        </fieldset>
+
+        {exigeCheck && (
+          <section className={"form-sec form-sec-ia" + (errors.checkIA ? " is-warn" : "")}>
+            <h2 className="form-sec-title">Último passo: check de IA</h2>
+            <p className="action-note">Copie o conteúdo, cole no Projeto do Claude com as diretrizes da dti e ajuste se precisar.</p>
+            <div className="check-steps">
+              <Button variant="outline" icon="copy" size="sm"
+                onClick={() => copyCheckText(form, toast)}>Copiar para o check de IA</Button>
+              <label className="cc-check">
+                <input type="checkbox" checked={form.checkIA} onChange={(e) => set("checkIA")(e.target.checked)} />
+                <span>Passei este conteúdo no check de IA <span className="req">*</span></span>
+              </label>
+            </div>
+            {errors.checkIA && <span className="field-error">{errors.checkIA}</span>}
+          </section>
+        )}
+
+        <div className="form-footer">
+          {trocarAutor ? (
+            <div className="form-autor">
+              <span>Enviando como</span>
+              <Select value={form.autor} onChange={set("autor")} options={TEAM_ATIVOS} placeholder="Quem está enviando?" />
+            </div>
+          ) : (
+            <span className="form-autor">Enviando como <b>{form.autor || "—"}</b> · <button type="button" className="tl-link" onClick={() => setTrocarAutor(true)}>trocar</button></span>
+          )}
+          {errors.autor && <span className="field-error">{errors.autor}</span>}
+          <Button variant="primary" icon="send" type="submit">Enviar para aprovação</Button>
         </div>
       </form>
     </div>
@@ -1383,7 +1390,7 @@ function CommentableContent({ item, currentUser, onUpdate, versao, texto, rodada
             display: "flex", alignItems: "center", gap: 5,
             boxShadow: "0 2px 8px rgba(0,0,0,.18)",
           }}>
-          ✏️ Comentar
+          <Icon name="edit" size={14} /> Comentar
         </button>
       )}
 
@@ -1927,25 +1934,6 @@ function CancelPanel({ item, currentUser, onUpdate, toast, close }) {
       </div>
     </div>
   );
-}
-
-function CancelInfo({ item }) {
-  const c = item.cancelamento || {};
-  return (
-    <div className="comment-block">
-      <div className="info-line" style={{ padding: 0 }}>
-        <Icon name="x" size={15} /> Cancelado{c.data ? " em " + fmtDate(c.data) : ""}{c.por ? " por " + c.por : ""}{c.motivo ? " — " + c.motivo : ""}.
-      </div>
-      {c.substitutoId && (
-        <p>Substituído por <a href={"?id=" + encodeURIComponent(c.substitutoId)} style={{ fontWeight: 700, color: "var(--accent)" }}>{c.substitutoId}</a></p>
-      )}
-      {c.comentario && <p>{c.comentario}</p>}
-    </div>
-  );
-}
-
-function Meta({ label, children }) {
-  return <div className="meta"><span className="meta-label">{label}</span><span className="meta-val">{children}</span></div>;
 }
 
 /* ════════════════════ ITEM DA FILA (accordion) ════════════════════ */
