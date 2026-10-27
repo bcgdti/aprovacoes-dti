@@ -259,7 +259,7 @@ a{ color:var(--accent); }
 .qitem-title{ font-family:var(--font-d); font-size:16px; font-weight:600; letter-spacing:-.01em; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .qitem-side{ display:flex; align-items:center; gap:14px; flex-shrink:0; }
 .qitem-link-btn{ background:none; border:none; cursor:pointer; padding:4px; border-radius:6px; color:var(--ink-3); display:flex; align-items:center; opacity:0; transition:opacity .15s; }
-.qitem:hover .qitem-link-btn,.qitem.is-open .qitem-link-btn{ opacity:1; }
+.qitem.is-open .qitem-link-btn{ opacity:1; }
 .qitem-link-btn:hover{ color:var(--accent); background:var(--accent-soft); }
 
 /* ───── Detail ───── */
@@ -309,6 +309,60 @@ a{ color:var(--accent); }
 .edit-history{ order:99; margin-top:8px; border-left:2px solid var(--line); padding:2px 0 2px 12px; display:flex; flex-direction:column; gap:10px; font-weight:400; text-transform:none; letter-spacing:0; }
 .edit-history-meta{ font-size:12px; color:var(--ink-3); font-weight:600; margin-bottom:2px; }
 .edit-history-text{ margin:0; font-size:13.5px; line-height:1.5; color:var(--ink-2); white-space:pre-wrap; }
+.qitem:not(.is-open) .qitem-link-btn{ visibility:hidden; }
+
+/* ───── Card: faixa de próximo passo ───── */
+.detail-band{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; margin-top:16px; padding:14px 18px; border-radius:var(--radius-sm); border:1px solid var(--line); background:var(--surface-2); }
+.detail-band.tom-ajustes{ background:#FDF4EE; border-color:#F6DCCB; }
+.detail-band.tom-externa{ background:#EEF8FA; border-color:#CDEAF0; }
+.detail-band.tom-aprovado{ background:#EEF8F3; border-color:#CDEBDD; }
+.detail-band.tom-aguardando{ background:#FDF8EE; border-color:#F3E3C2; }
+.detail-band-text{ flex:1 1 260px; display:flex; flex-direction:column; gap:2px; min-width:0; }
+.detail-band-text strong{ font-size:15px; }
+.detail-band-text span{ font-size:13px; color:var(--ink-2); }
+.more{ position:relative; }
+.more-backdrop{ position:fixed; inset:0; background:transparent; border:none; z-index:40; cursor:default; }
+.more-menu{ position:absolute; right:0; top:calc(100% + 6px); z-index:41; background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow-pop); padding:6px; display:flex; flex-direction:column; min-width:230px; }
+.more-item{ text-align:left; border:none; background:transparent; padding:10px 12px; border-radius:8px; font:inherit; font-size:14px; color:var(--ink); cursor:pointer; }
+.more-item:hover{ background:var(--bg); }
+.more-item.is-danger{ color:#C1450F; }
+
+/* ───── Card: linha do tempo ───── */
+.tl-section{ display:flex; flex-direction:column; gap:12px; }
+.tl{ margin:0; padding:0; list-style:none; }
+.tl-item{ display:flex; gap:14px; }
+.tl-rail{ display:flex; flex-direction:column; align-items:center; flex:0 0 28px; }
+.tl-line{ flex:1; width:2px; background:var(--line); margin:4px 0; }
+.tl-dot{ width:28px; height:28px; border-radius:50%; flex:0 0 28px; display:flex; align-items:center; justify-content:center; box-sizing:border-box; }
+.tl-dot.is-versao{ background:#E6F4EE; color:#0E7A54; font-size:11.5px; font-weight:800; }
+.tl-dot.is-ok{ background:#0E8A5F; color:#fff; }
+.tl-dot.is-ext{ background:#E3F6FA; color:#0A6F82; }
+.tl-dot.is-neutro{ background:#ECEEEF; color:#5A6568; }
+.tl-dot.is-agora{ border:2px dashed currentColor; color:var(--ink-3); }
+.tl-dot.is-agora.tom-ajustes, .tl-agora.tom-ajustes{ color:#C1450F; }
+.tl-dot.is-agora.tom-externa, .tl-agora.tom-externa{ color:#0A6F82; }
+.tl-dot.is-agora.tom-aguardando, .tl-agora.tom-aguardando{ color:#8A5800; }
+.tl-body{ flex:1; min-width:0; padding-bottom:20px; display:flex; flex-direction:column; gap:8px; }
+.tl-head{ display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; font-size:14.5px; min-height:28px; padding-top:4px; box-sizing:border-box; }
+.tl-date{ font-size:13px; color:var(--ink-2); }
+.tl-tag{ font-size:11.5px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, transparent); padding:2px 8px; border-radius:999px; }
+.tl-box{ position:relative; background:var(--surface-2); border:1px solid var(--line-2); border-radius:10px; padding:10px 40px 10px 14px; }
+.tl-box.is-warn{ background:#FDF4EE; border-color:#F6DCCB; }
+.tl-box p{ margin:0; font-size:15px; line-height:1.55; white-space:pre-wrap; }
+.tl-edit{ position:absolute; top:6px; right:6px; }
+.tl-muted{ margin:0; font-size:13.5px; color:var(--ink-2); font-style:italic; }
+.tl-sub{ font-size:13.5px; color:var(--ink-2); }
+.tl-link{ align-self:flex-start; border:none; background:transparent; padding:0; font:inherit; font-size:13.5px; font-weight:600; color:var(--accent); cursor:pointer; }
+.tl-anexo{ display:inline-flex; align-items:center; gap:7px; padding:6px 12px; background:var(--surface-2); border:1px solid var(--line-2); border-radius:8px; color:var(--accent); font-size:13px; font-weight:500; text-decoration:none; width:fit-content; max-width:100%; }
+.tl-body .content-block{ margin:0; }
+
+/* ───── Card: detalhes compactos ───── */
+.detail-meta{ margin:0; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px 16px; padding:14px 16px; background:var(--surface-2); border-radius:var(--radius-sm); }
+.detail-meta dt{ font-size:12px; color:var(--ink-2); font-weight:600; }
+.detail-meta dd{ margin:2px 0 0; font-size:13.5px; font-weight:600; overflow-wrap:anywhere; }
+.dd-sub{ font-weight:400; color:var(--ink-2); }
+.dd-ok{ color:#0E7A54; }
+@media (max-width: 720px){ .detail-meta{ grid-template-columns:repeat(2, minmax(0, 1fr)); } }
 .ia-result .block-label{ color:#0A7E94; margin-bottom:7px; }
 .ia-result p{ margin:0; font-size:14px; line-height:1.55; color:#16434C; white-space:pre-wrap; }
 
@@ -1201,10 +1255,11 @@ function offsetOf(root, node, off) {
   return total;
 }
 
-function CommentableContent({ item, currentUser, onUpdate, versao }) {
-  // versao: "original" | "corrigida" — padrão "original"
+function CommentableContent({ item, currentUser, onUpdate, versao, texto, rodada, rotulo, semLink }) {
+  // versao: "original" | "corrigida" — padrão "original". Na linha do tempo, `rodada` é o número da
+  // versão e `texto` o texto dela; comentários novos levam a rodada, os antigos seguem pela `versao`.
   const v = versao || "original";
-  const text = v === "corrigida" ? (item.versaoCorrigida || "") : item.conteudo;
+  const text = texto != null ? texto : (v === "corrigida" ? (item.versaoCorrigida || "") : item.conteudo);
   const ref = React.useRef(null);
   const [sel, setSel] = useS(null);
   const [pending, setPending] = useS(null);
@@ -1213,7 +1268,7 @@ function CommentableContent({ item, currentUser, onUpdate, versao }) {
 
   // Filtra notas da versão correta: notas sem campo versao são tratadas como "original"
   const notes = (item.notas || [])
-    .filter((n) => (n.versao || "original") === v)
+    .filter((n) => (rodada != null && n.rodada != null) ? n.rodada === rodada : (n.versao || "original") === v)
     .map((n) => {
       if (typeof n.start === "number" && n.end > n.start) return n;
       const idx = text.indexOf(n.quote || "");
@@ -1252,7 +1307,7 @@ function CommentableContent({ item, currentUser, onUpdate, versao }) {
   function add() {
     if (!draft.trim() || !sel) return;
     const note = { id: "n" + Date.now(), autor: currentUser, start: sel.start, end: sel.end,
-      quote: sel.quote, texto: draft.trim(), data: now(), versao: v };
+      quote: sel.quote, texto: draft.trim(), data: now(), versao: v, ...(rodada != null ? { rodada } : {}) };
     onUpdate(item.id, { notas: [...(item.notas || []), note] });
     clearSel(); setDraft("");
   }
@@ -1271,10 +1326,12 @@ function CommentableContent({ item, currentUser, onUpdate, versao }) {
 
   return (
     <div className="content-block">
-      <span className="block-label" style={{ whiteSpace: "normal" }}>
-        {v === "corrigida" ? "Versão corrigida" : (item.versaoCorrigida ? "Versão original" : "Conteúdo")} <EditedTag item={item} campo={v === "corrigida" ? "versaoCorrigida" : "conteudo"} /> <span className="cc-hint">— selecione um trecho para comentar</span>
-      </span>
-      <div className="content-text cc-text" ref={ref} onMouseUp={onMouseUp}
+      {rotulo !== null && (
+        <span className="block-label" style={{ whiteSpace: "normal" }}>
+          {rotulo || (v === "corrigida" ? "Versão corrigida" : (item.versaoCorrigida ? "Versão original" : "Conteúdo"))} <EditedTag item={item} campo={v === "corrigida" ? "versaoCorrigida" : "conteudo"} /> <span className="cc-hint">— selecione um trecho para comentar</span>
+        </span>
+      )}
+      <div className="content-text cc-text" ref={ref} onMouseUp={onMouseUp} title="Selecione um trecho para comentar"
         onMouseDown={() => { setPending(null); setSel(null); }}>
         {segs.map((sg, i) => sg.cov.length ? (
           <mark key={i} className={"cc-hl" + (sg.cov.some((n) => n.id === activeId) ? " is-active" : "")}
@@ -1309,7 +1366,7 @@ function CommentableContent({ item, currentUser, onUpdate, versao }) {
         </div>
       )}
 
-      {item.linkMidia && (
+      {item.linkMidia && !semLink && (
         <a className="media-link" href={item.linkMidia} target="_blank" rel="noreferrer">
           <Icon name="link" size={14} />{item.linkMidia}
         </a>
@@ -1339,20 +1396,141 @@ function CommentableContent({ item, currentUser, onUpdate, versao }) {
 }
 
 /* ════════════════════ DETALHE DO ITEM ════════════════════ */
+// Converte "AAAA-MM-DD HH:MM" em Date (ou null).
+function parseData(s) {
+  if (!s) return null;
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+  if (!m) return null;
+  return new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0));
+}
+function fmtDataHora(s) {
+  if (!s) return "";
+  const h = String(s).slice(11, 16);
+  return fmtDate(s) + (/^\d{2}:\d{2}$/.test(h) ? ", " + h : "");
+}
+function diasDesde(s) {
+  const d = parseData(s);
+  if (!d) return null;
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  return Math.round((hoje - d) / 86400000);
+}
+const plural = (n, um, varios) => n + " " + (n === 1 ? um : varios);
+
+// Quem pediu os ajustes da rodada atual: principal, secundário ou externo.
+function quemPediuAjustes(it) {
+  if (it.statusExterno === "Com ressalvas" && !it.comentarios) return it.contatoExterno || "o aprovador externo";
+  if (it.parecerSecundario === "Com ressalvas" && !it.comentarios) return it.aprovadorSecundario;
+  return it.aprovador;
+}
+
+// Faixa do topo: situação e próximo passo, do ponto de vista de quem está vendo.
+function proximoPasso(item, currentUser) {
+  const n = (item.historicoAjustes || []).length + 1; // versão atual
+  const voce = (nome) => !!nome && nome === currentUser;
+  const contato = item.contatoExterno || "o aprovador externo";
+  const extPend = item.precisaExterna && item.statusExterno !== "Aprovado";
+  switch (item.status) {
+    case "Cancelado": {
+      const c = item.cancelamento || {};
+      return { tom: "neutro", titulo: "Conteúdo cancelado",
+        sub: [c.motivo, c.por && "por " + c.por, c.data && "em " + fmtDate(c.data)].filter(Boolean).join(" · ") };
+    }
+    case "Ajustes solicitados": {
+      const quem = quemPediuAjustes(item);
+      return { tom: "ajustes", agora: `${voce(item.autor) ? "você envia" : item.autor + " envia"} a versão ${n + 1}`,
+        titulo: `Próximo passo: ${voce(item.autor) ? "você envia" : item.autor + " envia"} a versão ${n + 1}`,
+        sub: `${voce(quem) ? "Você pediu" : quem + " pediu"} ajustes na versão ${n}.` };
+    }
+    case "Aguardando aprovação externa": {
+      const d = diasDesde(item.dataDecisao);
+      return { tom: "externa", agora: `aguardando o retorno de ${contato} (externa)`,
+        titulo: `Próximo passo: registrar o retorno de ${contato}`,
+        sub: `Aprovado internamente${item.dataDecisao ? " em " + fmtDate(item.dataDecisao) : ""}.` +
+          (d != null ? ` A externa está pendente há ${plural(d, "dia", "dias")}.` : "") };
+    }
+    case "Aprovado": {
+      if (item.statusExterno === "Com ressalvas")
+        return { tom: "ajustes", titulo: "Aprovado, mas a externa voltou com ressalvas", sub: "Confira o retorno externo antes de publicar." };
+      if (extPend)
+        return { tom: "externa", agora: `aguardando o retorno de ${contato} (externa)`,
+          titulo: `Próximo passo: registrar o retorno de ${contato}`, sub: "Aprovado internamente. Falta a aprovação externa." };
+      return { tom: "aprovado", titulo: "Aprovado: liberado para publicação",
+        sub: item.dataDecisao ? "Aprovado em " + fmtDate(item.dataDecisao) + "." : "" };
+    }
+    default: { // Aguardando aprovação
+      const agora = `${voce(item.aprovador) ? "sua decisão sobre" : item.aprovador + " aprova"} a versão ${n}`;
+      if (voce(item.aprovador))
+        return { tom: "aguardando", agora, titulo: `Próximo passo: sua decisão sobre a versão ${n}`, sub: "Aprove ou peça ajustes logo abaixo." };
+      if (voce(item.aprovadorSecundario) && !item.parecerSecundario)
+        return { tom: "aguardando", agora, titulo: `Próximo passo: ${item.aprovador} aprova a versão ${n}`,
+          sub: "Seu parecer de secundário é opcional e pode ser dado logo abaixo." };
+      return { tom: "aguardando", agora, titulo: `Próximo passo: ${item.aprovador} aprova a versão ${n}`,
+        sub: voce(item.autor) ? "Nada pendente com você agora." : "" };
+    }
+  }
+}
+
+// Linha do tempo em ordem cronológica, a partir das rodadas guardadas e dos campos atuais.
+function linhaDoTempo(item) {
+  const hist = item.historicoAjustes || [];
+  const N = hist.length;
+  const porData = (a, b) => (parseData(a.data) || 0) - (parseData(b.data) || 0);
+  const ev = [];
+  hist.forEach((h, i) => {
+    const k = i + 1;
+    ev.push({ tipo: "versao", n: k, data: k === 1 ? item.dataEnvio : hist[i - 1].dataReenvio,
+      texto: h.texto != null ? h.texto : (k === 1 ? item.conteudo : null) });
+    if (h.parecerSecundario) ev.push({ tipo: "secundario", n: k, quem: h.secundario || item.aprovadorSecundario,
+      parecer: h.parecerSecundario, comentario: h.comentarioSecundario });
+    const decisoes = [];
+    if (h.comentario || (!h.parecerSecundario && !h.statusExterno))
+      decisoes.push({ tipo: "ajustes", n: k, quem: h.aprovador, data: h.dataDecisao, comentario: h.comentario,
+        imagens: h.imagensAjuste, anexos: h.anexosAprovacao });
+    if (h.statusExterno) decisoes.push({ tipo: "externa", n: k, quem: h.contatoExterno || item.contatoExterno,
+      status: h.statusExterno, data: h.dataExterna, comentario: h.comentarioExterno });
+    ev.push(...decisoes.sort(porData));
+  });
+
+  const n = N + 1;
+  ev.push({ tipo: "versao", n, atual: true, data: N === 0 ? item.dataEnvio : hist[N - 1].dataReenvio,
+    texto: N === 0 ? item.conteudo : (item.versaoCorrigida || item.conteudo) });
+  if (item.parecerSecundario) ev.push({ tipo: "secundario", n, atual: true, quem: item.aprovadorSecundario,
+    parecer: item.parecerSecundario, comentario: item.comentarioSecundario });
+  const decisoes = [];
+  const st = item.status === "Cancelado" ? ((item.cancelamento || {}).statusAnterior || "") : item.status;
+  if (st === "Ajustes solicitados" && (item.comentarios || (item.parecerSecundario !== "Com ressalvas" && item.statusExterno !== "Com ressalvas")))
+    decisoes.push({ tipo: "ajustes", n, atual: true, quem: item.aprovador, data: item.dataDecisao, comentario: item.comentarios,
+      imagens: item.imagensAjuste, anexos: item.anexosAprovacao });
+  if ((st === "Aguardando aprovação externa" || st === "Aprovado") && item.dataDecisao)
+    decisoes.push({ tipo: "aprovou", n, atual: true, quem: item.aprovador, data: item.dataDecisao, comentario: item.comentarios });
+  if (item.statusExterno) decisoes.push({ tipo: "externa", n, atual: true, quem: item.contatoExterno,
+    status: item.statusExterno, data: item.dataExterna, comentario: item.comentarioExterno });
+  ev.push(...decisoes.sort(porData));
+  if (item.status === "Cancelado") {
+    const c = item.cancelamento || {};
+    ev.push({ tipo: "cancelado", data: c.data, quem: c.por, motivo: c.motivo, substitutoId: c.substitutoId, comentario: c.comentario });
+  }
+  return ev;
+}
+
 function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
   const isApprover = item.aprovador === currentUser;
   const isSecondary = item.aprovadorSecundario === currentUser;
   const isAuthor = item.autor === currentUser;
   const isCancelado = item.status === "Cancelado";
   const canCancel = isAuthor || isApprover || PERFIS_MASTER.includes(currentUser);
-  const [editing, setEditing] = useS(false);
-  const [confirmDel, setConfirmDel] = useS(false);
-  const [confirmAprov, setConfirmAprov] = useS(false);
-  const [cancelling, setCancelling] = useS(false);
+  const [menuOpen, setMenuOpen] = useS(false);
+  const [painel, setPainel] = useS(null); // null | "editar" | "aprovar" | "excluir" | "cancelar" | "notion" | "externa"
+  const [abertas, setAbertas] = useS({}); // versões antigas expandidas
   const [editingComment, setEditingComment] = useS(null);
   const [editCommentDraft, setEditCommentDraft] = useS("");
   const [notionIdDraft, setNotionIdDraft] = useS(item.notionId || "");
   const [savingNotion, setSavingNotion] = useS(false);
+
+  const passo = proximoPasso(item, currentUser);
+  const eventos = linhaDoTempo(item);
+  const fechar = () => setPainel(null);
 
   async function saveNotionId() {
     if (savingNotion) return;
@@ -1366,6 +1544,7 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
         await syncNotionUrl(updated);
       }
       toast("ID do Notion salvo e calendário atualizado.", "success");
+      fechar();
     } catch (e) {
       toast("ID salvo, mas erro ao atualizar Notion: " + (e.message || e), "error");
     }
@@ -1391,7 +1570,7 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
   function marcarAprovado() {
     onUpdate(item.id, { status: "Aprovado", dataDecisao: nowStr() });
     toast("Conteúdo marcado como aprovado.", "success");
-    setConfirmAprov(false);
+    fechar();
   }
 
   function reabrir() {
@@ -1400,230 +1579,249 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
     toast(`Conteúdo reaberto — voltou para "${volta}".`, "success");
   }
 
+  function copyLink() {
+    const url = window.location.origin + window.location.pathname + "?id=" + encodeURIComponent(item.id);
+    navigator.clipboard.writeText(url).then(
+      () => toast("Link copiado para a área de transferência.", "success"),
+      () => toast("Não foi possível copiar o link.", "error")
+    );
+  }
+
+  // Ações raras ficam no menu "Mais ações".
+  const acoes = [
+    isAuthor && { label: "Editar envio", run: () => setPainel("editar") },
+    (isAuthor || isApprover) && { label: item.notionId ? "Trocar ID do Notion" : "Vincular ao Notion", run: () => setPainel("notion") },
+    item.precisaExterna && item.statusExterno && !isCancelado && (isAuthor || isApprover) && { label: "Alterar retorno externo", run: () => setPainel("externa") },
+    { label: "Copiar link do card", run: copyLink },
+    isAuthor && item.status !== "Aprovado" && !isCancelado && { label: "Marcar como aprovado", run: () => setPainel("aprovar") },
+    canCancel && item.status !== "Aprovado" && !isCancelado && { label: "Cancelar conteúdo", run: () => setPainel("cancelar"), perigo: true },
+    canCancel && isCancelado && { label: "Reabrir", run: reabrir },
+    isAuthor && { label: "Excluir definitivamente", run: () => setPainel("excluir"), perigo: true },
+  ].filter(Boolean);
+
+  // Comentário com lápis de edição (só na rodada atual).
+  function Comentario({ field, valor, pode, tom }) {
+    if (editingComment === field) {
+      return (
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          <textarea className="input textarea" rows={3} value={editCommentDraft} onChange={e => setEditCommentDraft(e.target.value)} />
+          <div style={{display:"flex",gap:6}}>
+            <Button size="sm" variant="primary" icon="check2" disabled={!editCommentDraft.trim()} onClick={() => saveComment(field)}>Salvar</Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditingComment(null)}>Cancelar</Button>
+          </div>
+        </div>
+      );
+    }
+    if (!valor && !pode) return null;
+    return (
+      <div className={"tl-box" + (tom ? " is-" + tom : "")}>
+        {valor ? <p>{valor}</p> : <p className="tl-muted">Sem comentário.</p>}
+        {pode && (
+          <button className="cc-note-x is-edit tl-edit" title="Editar comentário" onClick={() => startEditComment(field, valor)}>
+            <Icon name="edit" size={14} />
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  function Anexos({ imagens, anexos }) {
+    return (
+      <>
+        {imagens && imagens.length > 0 && (
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            {imagens.map((url, i) => (
+              <a key={i} href={url} target="_blank" rel="noreferrer">
+                <img src={url} alt={"Referência " + (i+1)}
+                  style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:"1px solid var(--line-2)",cursor:"pointer"}} />
+              </a>
+            ))}
+          </div>
+        )}
+        {anexos && anexos.length > 0 && (
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {anexos.map((a, i) => (
+              <a key={i} href={a.url} target="_blank" rel="noreferrer" className="tl-anexo">
+                <Icon name="file" size={14} />
+                <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.nome}</span>
+                <Icon name="externalLink" size={12} />
+              </a>
+            ))}
+          </div>
+        )}
+      </>
+    );
+  }
+
+  function Evento({ e, ultimo }) {
+    const quando = e.data ? <span className="tl-date">· {fmtDataHora(e.data)}</span> : null;
+    let dot, head, corpo = null;
+    if (e.tipo === "versao") {
+      dot = <span className="tl-dot is-versao">V{e.n}</span>;
+      const campoEd = e.n === 1 ? "conteudo" : (e.atual ? "versaoCorrigida" : null);
+      head = <><b>{item.autor} enviou a versão {e.n}</b>{quando}{e.atual && eventos.filter(x => x.tipo === "versao").length > 1 && <span className="tl-tag">versão atual</span>}{campoEd && <EditedTag item={item} campo={campoEd} />}</>;
+      const versao = e.n === 1 ? "original" : (e.atual ? "corrigida" : "anterior");
+      if (e.atual) {
+        corpo = <CommentableContent item={item} currentUser={currentUser} onUpdate={onUpdate} versao={versao} texto={e.texto} rodada={e.n} rotulo={null} />;
+      } else {
+        const aberta = !!abertas[e.n];
+        corpo = (
+          <>
+            <button className="tl-link" onClick={() => setAbertas({ ...abertas, [e.n]: !aberta })}>
+              {aberta ? `Ocultar versão ${e.n}` : `Ver versão ${e.n}`}
+            </button>
+            {aberta && (e.texto != null
+              ? <CommentableContent item={item} currentUser={currentUser} onUpdate={onUpdate} versao={versao} texto={e.texto} rodada={e.n} rotulo={null} semLink />
+              : <p className="tl-muted">O texto desta versão não foi guardado (rodadas anteriores a 27/10/2026 guardavam só a primeira e a última versão).</p>)}
+          </>
+        );
+      }
+    } else if (e.tipo === "ajustes") {
+      dot = <span className="tl-dot"><Avatar name={e.quem} size={28} /></span>;
+      head = <><b>{e.quem} pediu ajustes na versão {e.n}</b>{quando}{e.atual && <EditedTag item={item} campo="comentarios" />}</>;
+      corpo = <>
+        {e.atual
+          ? Comentario({ field: "principal", valor: e.comentario, pode: isApprover && !!e.comentario, tom: item.status === "Ajustes solicitados" ? "warn" : null })
+          : (e.comentario ? <div className="tl-box"><p>{e.comentario}</p></div> : null)}
+        {Anexos({ imagens: e.imagens, anexos: e.anexos })}
+      </>;
+    } else if (e.tipo === "aprovou") {
+      dot = <span className="tl-dot is-ok"><Icon name="check2" size={15} /></span>;
+      head = <><b>{e.quem} aprovou a versão {e.n}</b>{quando}<EditedTag item={item} campo="comentarios" /></>;
+      corpo = Comentario({ field: "principal", valor: e.comentario, pode: isApprover && !!e.comentario });
+    } else if (e.tipo === "secundario") {
+      dot = <span className="tl-dot"><Avatar name={e.quem} size={28} /></span>;
+      head = <><b>{e.quem} (secundário): {e.parecer.toLowerCase()}</b>{e.atual && <EditedTag item={item} campo="comentarioSecundario" />}</>;
+      corpo = e.atual
+        ? Comentario({ field: "secundario", valor: e.comentario, pode: isSecondary && !!e.comentario, tom: e.parecer === "Com ressalvas" ? "warn" : null })
+        : (e.comentario ? <div className="tl-box"><p>{e.comentario}</p></div> : null);
+    } else if (e.tipo === "externa") {
+      dot = <span className={"tl-dot " + (e.status === "Aprovado" ? "is-ok" : "is-ext")}><Icon name="globe" size={15} /></span>;
+      head = <><b>{e.quem || "Aprovação externa"} (externa): {e.status === "Aprovado" ? "aprovou" : e.status.toLowerCase()}</b>{quando}{e.atual && <EditedTag item={item} campo="comentarioExterno" />}</>;
+      corpo = e.atual
+        ? Comentario({ field: "externo", valor: e.comentario, pode: (isApprover || isAuthor) && !!e.comentario, tom: e.status === "Com ressalvas" ? "warn" : null })
+        : (e.comentario ? <div className="tl-box"><p>{e.comentario}</p></div> : null);
+    } else if (e.tipo === "cancelado") {
+      dot = <span className="tl-dot is-neutro"><Icon name="x" size={15} /></span>;
+      head = <><b>Cancelado{e.quem ? " por " + e.quem : ""}</b>{quando}</>;
+      corpo = <>
+        {e.motivo && <span className="tl-sub">{e.motivo}</span>}
+        {e.substitutoId && <span className="tl-sub">Substituído por <a href={"?id=" + encodeURIComponent(e.substitutoId)} style={{ fontWeight: 700 }}>{e.substitutoId}</a></span>}
+        {e.comentario && <div className="tl-box"><p>{e.comentario}</p></div>}
+      </>;
+    }
+    return (
+      <li className="tl-item">
+        <div className="tl-rail">{dot}{!ultimo && <span className="tl-line" />}</div>
+        <div className="tl-body">
+          <div className="tl-head">{head}</div>
+          {corpo}
+        </div>
+      </li>
+    );
+  }
+
+  const mostrarAgora = !!passo.agora && !isCancelado;
+  const externaAberta = item.precisaExterna && !isCancelado && (isAuthor || isApprover) && (!item.statusExterno || painel === "externa");
+
   return (
     <div className="detail">
-      <div className="detail-grid">
-        <Meta label="Autor"><span className="meta-person"><Avatar name={item.autor} size={22} />{item.autor}</span></Meta>
-        <Meta label="Aprovador principal"><span className="meta-person"><Avatar name={item.aprovador} size={22} />{item.aprovador}</span></Meta>
-        <Meta label="Aprovador secundário">
-          {item.aprovadorSecundario
-            ? <span className="meta-person"><Avatar name={item.aprovadorSecundario} size={22} />{item.aprovadorSecundario}</span>
-            : "—"}
-        </Meta>
-        <Meta label="Tipo / postagem">
-          <Chip muted>{item.tipoAprovacao}</Chip>
-          {item.dataPostagem ? " · " + fmtDate(item.dataPostagem) : ""}
-        </Meta>
+      {/* ① Situação e próximo passo */}
+      <div className={"detail-band tom-" + passo.tom}>
+        <div className="detail-band-text">
+          <strong>{passo.titulo}</strong>
+          {passo.sub && <span>{passo.sub}</span>}
+        </div>
+        <div className="more">
+          <Button variant="outline" size="sm" onClick={() => setMenuOpen(!menuOpen)}>Mais ações ▾</Button>
+          {menuOpen && (
+            <>
+              <button className="more-backdrop" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} />
+              <div className="more-menu" role="menu">
+                {acoes.map((a) => (
+                  <button key={a.label} role="menuitem" className={"more-item" + (a.perigo ? " is-danger" : "")}
+                    onClick={() => { setMenuOpen(false); a.run(); }}>{a.label}</button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      {(isAuthor || isApprover) && (
-        <div style={{display:"flex",alignItems:"center",gap:8,margin:"12px 0",flexWrap:"wrap"}}>
-          <span style={{fontSize:12.5,color:"var(--ink-3)",fontWeight:500,whiteSpace:"nowrap"}}>ID Notion:</span>
-          <input
-            className="input"
-            style={{flex:1,minWidth:120,maxWidth:200,padding:"4px 8px",fontSize:13}}
-            value={notionIdDraft}
-            onChange={e => setNotionIdDraft(e.target.value)}
-            placeholder="Ex.: RS-42 ou 42"
-          />
-          <Button size="sm" variant="ghost" icon="check" disabled={savingNotion} onClick={saveNotionId}>
-            {savingNotion ? "Salvando…" : "Salvar"}
-          </Button>
-        </div>
-      )}
-
-      <CommentableContent item={item} currentUser={currentUser} onUpdate={onUpdate} versao="original" />
-      {item.versaoCorrigida && (
-        <CommentableContent item={item} currentUser={currentUser} onUpdate={onUpdate} versao="corrigida" />
-      )}
-
-      {(isAuthor || canCancel) && !editing && !confirmDel && !confirmAprov && !cancelling && (
-        <div className="action-row" style={{ justifyContent: "flex-start" }}>
-          {isAuthor && <Button variant="outline" size="sm" icon="edit" onClick={() => setEditing(true)}>Editar</Button>}
-          {isAuthor && item.status !== "Aprovado" && !isCancelado && (
-            <Button variant="outline" size="sm" icon="check2" onClick={() => setConfirmAprov(true)}>Marcar como aprovado</Button>
-          )}
-          {canCancel && item.status !== "Aprovado" && !isCancelado && (
-            <Button variant="outline" size="sm" icon="x" onClick={() => setCancelling(true)}>Cancelar conteúdo</Button>
-          )}
-          {canCancel && isCancelado && (
-            <Button variant="outline" size="sm" icon="refresh" onClick={reabrir}>Reabrir</Button>
-          )}
-          {isAuthor && <Button variant="danger-soft" size="sm" icon="x" onClick={() => setConfirmDel(true)}>Excluir</Button>}
-        </div>
-      )}
-      {cancelling && <CancelPanel item={item} currentUser={currentUser} onUpdate={onUpdate} toast={toast} close={() => setCancelling(false)} />}
-      {confirmAprov && (
-        <div className="action-block is-warn">
-          <div className="action-head"><Icon name="check2" size={16} /><strong>Marcar como aprovado?</strong></div>
-          <p className="action-note">O conteúdo será marcado como aprovado sem passar pelo fluxo de validação. Use apenas quando a aprovação já ocorreu fora da plataforma.</p>
-          <div className="action-row">
-            <Button variant="ghost" size="sm" onClick={() => setConfirmAprov(false)}>Cancelar</Button>
-            <Button variant="primary" size="sm" icon="check2" onClick={marcarAprovado}>Confirmar aprovação</Button>
-          </div>
-        </div>
-      )}
-      {confirmDel && (
-        <div className="action-block is-warn">
-          <div className="action-head"><Icon name="x" size={16} /><strong>Excluir este conteúdo?</strong></div>
-          <p className="action-note">Esta ação é permanente e remove o registro da planilha. Não pode ser desfeita.</p>
-          <div className="action-row">
-            <Button variant="ghost" size="sm" onClick={() => setConfirmDel(false)}>Cancelar</Button>
-            <Button variant="danger" size="sm" icon="x" onClick={() => { setConfirmDel(false); onDelete(item.id); }}>Excluir definitivamente</Button>
-          </div>
-        </div>
-      )}
-      {editing && <EditPanel item={item} currentUser={currentUser} onUpdate={onUpdate} toast={toast} close={() => setEditing(false)} />}
-
-      {needsIACheck(item) && item.checkIA && (
-        <div className="info-line ok"><Icon name="sparkle" size={15} /> Check de IA confirmado pelo autor antes do envio.</div>
-      )}
-
-      {item.parecerSecundario && (
-        <div className={"comment-block" + (item.parecerSecundario === "Com ressalvas" ? " is-warn" : "")}>
-          <span className="block-label">
-            <Avatar name={item.aprovadorSecundario} size={18} /> Parecer de {item.aprovadorSecundario} (secundário): <strong>{item.parecerSecundario}</strong>
-            <EditedTag item={item} campo="comentarioSecundario" />
-            {isSecondary && editingComment !== "secundario" && (
-              <button className="cc-note-x is-edit" title="Editar comentário" style={{marginLeft:"auto"}} onClick={() => startEditComment("secundario", item.comentarioSecundario)}>
-                <Icon name="edit" size={14} />
-              </button>
-            )}
-          </span>
-          {editingComment === "secundario" ? (
-            <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
-              <textarea className="input textarea" rows={3} value={editCommentDraft} onChange={e => setEditCommentDraft(e.target.value)} />
-              <div style={{display:"flex",gap:6}}>
-                <Button size="sm" variant="primary" icon="check2" disabled={!editCommentDraft.trim()} onClick={() => saveComment("secundario")}>Salvar</Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditingComment(null)}>Cancelar</Button>
-              </div>
-            </div>
-          ) : (
-            item.comentarioSecundario && <p>{item.comentarioSecundario}</p>
-          )}
-        </div>
-      )}
-
-      {item.comentarios && (
-        <div className={"comment-block" + (item.status === "Ajustes solicitados" ? " is-warn" : "")}>
-          <span className="block-label">
-            <Avatar name={item.aprovador} size={18} /> Comentário de {item.aprovador}
-            {item.dataDecisao && <span className="comment-date">· {fmtDate(item.dataDecisao)}</span>}
-            <EditedTag item={item} campo="comentarios" />
-            {isApprover && editingComment !== "principal" && (
-              <button className="cc-note-x is-edit" title="Editar comentário" style={{marginLeft:"auto"}} onClick={() => startEditComment("principal", item.comentarios)}>
-                <Icon name="edit" size={14} />
-              </button>
-            )}
-          </span>
-          {editingComment === "principal" ? (
-            <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
-              <textarea className="input textarea" rows={3} value={editCommentDraft} onChange={e => setEditCommentDraft(e.target.value)} />
-              <div style={{display:"flex",gap:6}}>
-                <Button size="sm" variant="primary" icon="check2" disabled={!editCommentDraft.trim()} onClick={() => saveComment("principal")}>Salvar</Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditingComment(null)}>Cancelar</Button>
-              </div>
-            </div>
-          ) : (
-            <p>{item.comentarios}</p>
-          )}
-          {item.imagensAjuste && item.imagensAjuste.length > 0 && (
-            <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:8}}>
-              {item.imagensAjuste.map((url, i) => (
-                <a key={i} href={url} target="_blank" rel="noreferrer">
-                  <img src={url} alt={"Referência " + (i+1)}
-                    style={{width:80,height:80,objectFit:"cover",borderRadius:8,
-                      border:"1px solid var(--line-2)",cursor:"pointer"}} />
-                </a>
-              ))}
-            </div>
-          )}
-          {item.anexosAprovacao && item.anexosAprovacao.length > 0 && (
-            <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:8}}>
-              {item.anexosAprovacao.map((a, i) => (
-                <a key={i} href={a.url} target="_blank" rel="noreferrer"
-                  style={{display:"inline-flex",alignItems:"center",gap:7,padding:"6px 12px",
-                    background:"var(--surface-2)",border:"1px solid var(--line-2)",borderRadius:8,
-                    color:"var(--accent)",fontSize:13,fontWeight:500,textDecoration:"none",
-                    width:"fit-content",maxWidth:"100%"}}>
-                  <Icon name="file" size={14} />
-                  <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.nome}</span>
-                  <Icon name="externalLink" size={12} />
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {item.historicoAjustes && item.historicoAjustes.length > 0 && (
-        <HistoricoAjustes historico={item.historicoAjustes} />
-      )}
-
-      {item.precisaExterna && !(isCancelado && !item.statusExterno) && (
-        <div className={"comment-block" + (item.statusExterno === "Com ressalvas" ? " is-warn" : "")}>
-          <span className="block-label">
-            <Icon name="globe" size={14} /> Aprovação externa — {item.contatoExterno || "contato não informado"}
-            {item.statusExterno ? ": " : ""}<strong>{item.statusExterno || "(após aprovação interna)"}</strong>
-            {item.dataExterna && <span className="comment-date">· {fmtDate(item.dataExterna)}</span>}
-            <EditedTag item={item} campo="comentarioExterno" />
-            {(isApprover || isAuthor) && item.comentarioExterno && editingComment !== "externo" && (
-              <button className="cc-note-x is-edit" title="Editar comentário externo" style={{marginLeft:"auto"}} onClick={() => startEditComment("externo", item.comentarioExterno)}>
-                <Icon name="edit" size={14} />
-              </button>
-            )}
-          </span>
-          {editingComment === "externo" ? (
-            <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
-              <textarea className="input textarea" rows={3} value={editCommentDraft} onChange={e => setEditCommentDraft(e.target.value)} />
-              <div style={{display:"flex",gap:6}}>
-                <Button size="sm" variant="primary" icon="check2" disabled={!editCommentDraft.trim()} onClick={() => saveComment("externo")}>Salvar</Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditingComment(null)}>Cancelar</Button>
-              </div>
-            </div>
-          ) : (
-            item.comentarioExterno && <p>{item.comentarioExterno}</p>
-          )}
-        </div>
-      )}
-
-      {/* Ações contextuais — aprovação interna */}
-      {item.status === "Aguardando aprovação" && isSecondary && !item.parecerSecundario && (
-        <SecondaryPanel item={item} onUpdate={onUpdate} onDelete={onDelete} toast={toast} />
-      )}
+      {/* ② Sua ação */}
       {item.status === "Aguardando aprovação" && isApprover && (
         <DecisionPanel item={item} onUpdate={onUpdate} onDelete={onDelete} toast={toast} />
       )}
-      {item.status === "Aguardando aprovação" && !isApprover && !isSecondary && (
-        <div className="info-line"><Icon name="clock" size={15} /> Aguardando decisão de {item.aprovador}.</div>
-      )}
-      {item.status === "Aguardando aprovação" && isSecondary && item.parecerSecundario && !isApprover && (
-        <div className="info-line ok"><Icon name="check2" size={15} /> Seu parecer foi registrado. Decisão final com {item.aprovador}.</div>
-      )}
-      {item.status === "Aprovado" && isSecondary && (
+      {isSecondary && ((item.status === "Aguardando aprovação" && !item.parecerSecundario) || item.status === "Aprovado") && (
         <SecondaryPanel item={item} onUpdate={onUpdate} onDelete={onDelete} toast={toast} />
-      )}
-      {item.status === "Aguardando aprovação externa" && (
-        <div className="info-line"><Icon name="clock" size={15} /> Aprovado internamente — aguardando retorno externo.</div>
       )}
       {item.status === "Ajustes solicitados" && isAuthor && (
         <ResendPanel item={item} onUpdate={onUpdate} onDelete={onDelete} toast={toast} />
       )}
-      {item.status === "Ajustes solicitados" && !isAuthor && (
-        <div className="info-line"><Icon name="edit" size={15} /> Aguardando {item.autor} enviar a versão corrigida.</div>
+      {externaAberta && <ExternalPanel item={item} onUpdate={onUpdate} toast={toast} />}
+      {painel === "cancelar" && <CancelPanel item={item} currentUser={currentUser} onUpdate={onUpdate} toast={toast} close={fechar} />}
+      {painel === "editar" && <EditPanel item={item} currentUser={currentUser} onUpdate={onUpdate} toast={toast} close={fechar} />}
+      {painel === "notion" && (
+        <div className="action-block">
+          <div className="action-head"><Icon name="link" size={16} /><strong>ID no Calendário Notion</strong></div>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+            <input className="input" style={{maxWidth:220}} value={notionIdDraft} autoFocus
+              onChange={e => setNotionIdDraft(e.target.value)} placeholder="Ex.: RS-42 ou 42" />
+            <Button variant="ghost" size="sm" onClick={fechar}>Voltar</Button>
+            <Button variant="primary" size="sm" icon="check2" disabled={savingNotion} onClick={saveNotionId}>{savingNotion ? "Salvando…" : "Salvar"}</Button>
+          </div>
+        </div>
       )}
-      {item.status === "Aprovado" && (
-        <div className="info-line ok"><Icon name="check2" size={15} /> Aprovado em {fmtDate(item.dataDecisao)} — liberado para publicação.</div>
+      {painel === "aprovar" && (
+        <div className="action-block is-warn">
+          <div className="action-head"><Icon name="check2" size={16} /><strong>Marcar como aprovado?</strong></div>
+          <p className="action-note">O conteúdo será marcado como aprovado sem passar pelo fluxo de validação. Use apenas quando a aprovação já ocorreu fora da plataforma.</p>
+          <div className="action-row">
+            <Button variant="ghost" size="sm" onClick={fechar}>Cancelar</Button>
+            <Button variant="primary" size="sm" icon="check2" onClick={marcarAprovado}>Confirmar aprovação</Button>
+          </div>
+        </div>
       )}
-      {isCancelado && <CancelInfo item={item} />}
+      {painel === "excluir" && (
+        <div className="action-block is-warn">
+          <div className="action-head"><Icon name="x" size={16} /><strong>Excluir este conteúdo?</strong></div>
+          <p className="action-note">Esta ação é permanente e remove o registro. Não pode ser desfeita. Para tirar da fila sem perder o histórico, use "Cancelar conteúdo".</p>
+          <div className="action-row">
+            <Button variant="ghost" size="sm" onClick={fechar}>Voltar</Button>
+            <Button variant="danger" size="sm" icon="x" onClick={() => { fechar(); onDelete(item.id); }}>Excluir definitivamente</Button>
+          </div>
+        </div>
+      )}
 
-      {/* Aprovação externa — independente, sempre visível quando necessário */}
-      {item.precisaExterna && !isCancelado && (isAuthor || isApprover) && (
-        <ExternalPanel item={item} onUpdate={onUpdate} toast={toast} />
-      )}
-      {item.precisaExterna && !isCancelado && !isAuthor && !isApprover && !item.statusExterno && (
-        <div className="info-line"><Icon name="globe" size={15} /> Aprovação externa pendente com: {item.contatoExterno || "—"}.</div>
-      )}
+      {/* ③ Linha do tempo */}
+      <div className="tl-section">
+        <span className="block-label">Linha do tempo</span>
+        <ol className="tl">
+          {eventos.map((e, i) => <React.Fragment key={i}>{Evento({ e, ultimo: i === eventos.length - 1 && !mostrarAgora })}</React.Fragment>)}
+          {mostrarAgora && (
+            <li className="tl-item">
+              <div className="tl-rail"><span className={"tl-dot is-agora tom-" + passo.tom}><Icon name="clock" size={14} /></span></div>
+              <div className="tl-body">
+                <div className="tl-head"><b className={"tl-agora tom-" + passo.tom}>Agora: {passo.agora}</b></div>
+              </div>
+            </li>
+          )}
+        </ol>
+      </div>
+
+      {/* ④ Detalhes */}
+      <dl className="detail-meta">
+        <div><dt>Autor</dt><dd>{item.autor}</dd></div>
+        <div><dt>Aprovador</dt><dd>{item.aprovador || "—"}</dd></div>
+        <div><dt>Secundário</dt><dd>{item.aprovadorSecundario ? <>{item.aprovadorSecundario} <span className="dd-sub">· {item.parecerSecundario || "sem parecer"}</span></> : <span className="dd-sub">Nenhum</span>}</dd></div>
+        <div><dt>Aprovação externa</dt><dd>{item.precisaExterna ? <>{item.contatoExterno || "—"} <span className="dd-sub">· {item.statusExterno ? item.statusExterno.toLowerCase() : "pendente"}</span></> : <span className="dd-sub">Não precisa</span>}</dd></div>
+        <div><dt>Tipo</dt><dd>{item.tipoAprovacao || "—"}</dd></div>
+        <div><dt>Publicação</dt><dd>{item.dataPostagem ? fmtDate(item.dataPostagem) : <span className="dd-sub">Sem data</span>}</dd></div>
+        <div><dt>Notion</dt><dd>{item.notionId
+          ? item.notionId
+          : ((isAuthor || isApprover) ? <button className="tl-link" onClick={() => setPainel("notion")}>+ vincular</button> : <span className="dd-sub">—</span>)}</dd></div>
+        <div><dt>Check de IA</dt><dd>{needsIACheck(item) ? (item.checkIA ? <span className="dd-ok">Feito</span> : "Pendente") : <span className="dd-sub">Não se aplica</span>}</dd></div>
+      </dl>
     </div>
   );
 }
@@ -1996,35 +2194,6 @@ function EditPanel({ item, currentUser, onUpdate, toast, close }) {
   );
 }
 
-/* ════════════════════ HISTÓRICO DE AJUSTES ════════════════════ */
-function HistoricoAjustes({ historico }) {
-  const [open, setOpen] = useS(false);
-  if (!historico || historico.length === 0) return null;
-  return (
-    <div className="hist-section">
-      <button className="hist-toggle" onClick={() => setOpen(o => !o)}>
-        <Icon name="chevron" size={13} style={{transform: open ? "rotate(180deg)" : "none", transition:".15s"}} />
-        {historico.length} rodada{historico.length > 1 ? 's' : ''} de ajuste{historico.length > 1 ? 's' : ''} anterior{historico.length > 1 ? 'es' : ''}
-      </button>
-      {open && (
-        <div className="hist-list">
-          {historico.map((h, i) => (
-            <div key={i} className="hist-item">
-              <div className="hist-item-head">
-                <Avatar name={h.aprovador} size={16} />
-                <strong>Rodada {h.rodada}</strong> — ajuste pedido por {h.aprovador}
-                {h.dataDecisao && <span>· {fmtDate(h.dataDecisao)}</span>}
-                {h.dataReenvio && <span>· reenviado em {fmtDate(h.dataReenvio)}</span>}
-              </div>
-              {h.comentario && <p>{h.comentario}</p>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ════════════════════ VERSÃO CORRIGIDA (reenvio) ════════════════════ */
 function ResendPanel({ item, onUpdate, toast }) {
   const [text, setText] = useS(item.versaoCorrigida || item.conteudo);
@@ -2034,12 +2203,23 @@ function ResendPanel({ item, onUpdate, toast }) {
   function resend() {
     if (!text.trim()) return;
     if (exigeCheck && !checkIA) { toast("Confirme que passou a versão corrigida pelo check de IA.", "error"); return; }
+    // Guarda a rodada inteira (texto revisado + todos os pareceres), porque o reenvio limpa esses campos.
     const entrada = {
       rodada: (item.historicoAjustes || []).length + 1,
       aprovador: item.aprovador,
       comentario: item.comentarios,
       dataDecisao: item.dataDecisao,
       dataReenvio: nowStr(),
+      texto: item.versaoCorrigida || item.conteudo,
+      secundario: item.aprovadorSecundario || "",
+      parecerSecundario: item.parecerSecundario || "",
+      comentarioSecundario: item.comentarioSecundario || "",
+      contatoExterno: item.contatoExterno || "",
+      statusExterno: item.statusExterno || "",
+      comentarioExterno: item.comentarioExterno || "",
+      dataExterna: item.dataExterna || "",
+      imagensAjuste: item.imagensAjuste || [],
+      anexosAprovacao: item.anexosAprovacao || [],
     };
     onUpdate(item.id, {
       versaoCorrigida: text,
@@ -2048,6 +2228,7 @@ function ResendPanel({ item, onUpdate, toast }) {
       comentarios: "", dataDecisao: "",
       parecerSecundario: "", comentarioSecundario: "",
       statusExterno: "", comentarioExterno: "", dataExterna: "",
+      imagensAjuste: [], anexosAprovacao: [],
       historicoAjustes: [...(item.historicoAjustes || []), entrada],
     });
     toast("Versão corrigida reenviada para a fila.", "success");
