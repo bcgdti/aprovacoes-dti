@@ -121,3 +121,8 @@ insert into links_categorias (nome, cor, ordem) values
   ('Métricas e relatórios',     '#FF7800', 4),
   ('Geral',                     '#6A290A', 5)
 on conflict (nome) do nothing;
+
+-- 9. Tempo real da tabela de conteúdos (2026-11-04)
+-- Sem isso o Supabase não avisa o sistema quando alguém envia ou muda um conteúdo.
+-- Se a tabela já estiver na publicação, o comando dá erro "already member" (pode ignorar).
+alter publication supabase_realtime add table conteudos;

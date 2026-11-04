@@ -3269,11 +3269,23 @@ function App() {
   useEffect_(() => {
     reload();
     // Atualização em tempo real: a fila muda sozinha quando alguém salva algo.
+    // Depende de a tabela estar na publicação supabase_realtime (setup.sql, seção 9).
     const channel = sb.channel('conteudos-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conteudos' },
         () => reload(true))
-      .subscribe();
-    return () => sb.removeChannel(channel);
+      .subscribe((status) => { window.__realtimeStatus = status; });
+    // Segurança: busca de novo a cada minuto com a aba visível e ao voltar para a aba,
+    // para os números aparecerem mesmo se o tempo real cair.
+    const atualizar = () => { if (document.visibilityState === "visible") reload(true); };
+    const timer = setInterval(atualizar, 60000);
+    window.addEventListener("focus", atualizar);
+    document.addEventListener("visibilitychange", atualizar);
+    return () => {
+      sb.removeChannel(channel);
+      clearInterval(timer);
+      window.removeEventListener("focus", atualizar);
+      document.removeEventListener("visibilitychange", atualizar);
+    };
   }, []);
 
   function showToast(msg, kind = "info") {
