@@ -911,7 +911,7 @@ function SubmitView({ currentUser, onCreate, toast }) {
               <input className="input" type="date" value={form.dataPostagem}
                 onChange={(e) => set("dataPostagem")(e.target.value)} />
             </Field>
-            <Field label="ID no Calendário Notion" hint="RS-42 ou só 42">
+            <Field label="ID no Calendário Notion" hint="RS-42 ou só 42 · com o ID, a data passa a vir do Notion">
               <input className="input" type="text" value={form.notionId}
                 onChange={(e) => set("notionId")(e.target.value)}
                 placeholder="Ex.: RS-42 ou 42" />
@@ -1083,10 +1083,12 @@ function ExternalPanel({ item, onUpdate, toast }) {
 }
 
 /* ════════════════════ SYNC NOTION ════════════════════ */
+// Database do Calendário de conteúdo no Notion.
+const NOTION_DB_CALENDARIO = "29d6a5bf5ce480be951cc0f6d766c5f8";
 async function _notionFindPage(token, notionId) {
   const notionNum = parseInt(String(notionId).replace(/\D/g, ''), 10);
   if (!notionNum) return null;
-  const dbId = "29d6a5bf5ce480be951cc0f6d766c5f8";
+  const dbId = NOTION_DB_CALENDARIO;
   const res = await fetch(`https://api.notion.com/v1/databases/${dbId}/query`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${token}`, "Notion-Version": "2022-06-28", "Content-Type": "application/json" },
@@ -1137,6 +1139,47 @@ async function syncNotionUrl(item) {
     props["Arte"] = { url: cardUrl };
   }
   await _notionPatch(token, page.id, props);
+}
+
+// Notion → sistema: o "Dia de Postagem" do Calendário Notion manda na data de publicação dos cards vinculados.
+// Lê em lote (até 100 IDs por consulta) e grava só o que mudou, guardando a data anterior em "edicoes" (por: "Notion").
+// Ignora cancelados e aprovados com publicação já passada; data vazia no Notion não apaga a do sistema.
+async function sincronizarDatasNotion(lista, aplicar) {
+  const token = window.__NOTION_TOKEN__;
+  if (!token || !lista) return 0;
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const num = (it) => parseInt(String(it.notionId || "").replace(/\D/g, ""), 10) || null;
+  const alvos = lista.filter((it) => num(it) && it.status !== "Cancelado" &&
+    !(it.status === "Aprovado" && parseData(it.dataPostagem) && parseData(it.dataPostagem) < hoje));
+  if (!alvos.length) return 0;
+  const datas = {};
+  const nums = [...new Set(alvos.map(num))];
+  for (let i = 0; i < nums.length; i += 100) {
+    const lote = nums.slice(i, i + 100);
+    const res = await fetch(`https://api.notion.com/v1/databases/${NOTION_DB_CALENDARIO}/query`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}`, "Notion-Version": "2022-06-28", "Content-Type": "application/json" },
+      body: JSON.stringify({ page_size: 100, filter: { or: lote.map((n) => ({ property: "ID", unique_id: { equals: n } })) } }),
+    });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    (data.results || []).forEach((p) => {
+      const id = p.properties?.ID?.unique_id?.number;
+      const dia = p.properties?.["Dia de Postagem"]?.date?.start;
+      if (id && dia) datas[id] = String(dia).slice(0, 10);
+    });
+  }
+  let mudou = 0;
+  for (const it of alvos) {
+    const novo = datas[num(it)];
+    if (!novo || novo === (it.dataPostagem || "").slice(0, 10)) continue;
+    if (it.status === "Aprovado" && parseData(novo) < hoje) continue; // já publicado: não mexe
+    const patch = { dataPostagem: novo };
+    if (it.dataPostagem) patch.edicoes = registrarEdicao(it, "dataPostagem", novo, "Notion");
+    const { error } = await sb.from("conteudos").update(patchToDb(patch)).eq("id", it.id);
+    if (!error) { aplicar(it.id, patch); mudou++; }
+  }
+  return mudou;
 }
 
 // Chamado na aprovação — atualiza links + status
@@ -1824,6 +1867,8 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
   }
 
   const mostrarAgora = !!passo.agora && !isCancelado;
+  // Última vez que o Notion mudou a data de publicação (para mostrar a data anterior nos detalhes).
+  const mudancaNotion = (item.edicoes || []).filter(e => e.campo === "dataPostagem" && e.por === "Notion").slice(-1)[0];
   const externaAberta = item.precisaExterna && !isCancelado && (isAuthor || isApprover) && (!item.statusExterno || painel === "externa");
 
   return (
@@ -1922,7 +1967,9 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
         <div><dt>Secundário</dt><dd>{item.aprovadorSecundario ? <>{item.aprovadorSecundario} <span className="dd-sub">· {item.parecerSecundario || "sem parecer"}</span></> : <span className="dd-sub">Nenhum</span>}</dd></div>
         <div><dt>Aprovação externa</dt><dd>{item.precisaExterna ? <>{item.contatoExterno || "—"} <span className="dd-sub">· {item.statusExterno ? item.statusExterno.toLowerCase() : "pendente"}</span></> : <span className="dd-sub">Não precisa</span>}</dd></div>
         <div><dt>Tipo</dt><dd>{item.tipoAprovacao || "—"}</dd></div>
-        <div><dt>Publicação</dt><dd>{item.dataPostagem ? fmtDate(item.dataPostagem) : <span className="dd-sub">Sem data</span>}</dd></div>
+        <div><dt>Publicação</dt><dd>{item.dataPostagem ? fmtDate(item.dataPostagem) : <span className="dd-sub">Sem data</span>}
+          {mudancaNotion && <span className="dd-sub" title={"Atualizada pelo Notion em " + fmtDataHora(mudancaNotion.data)}> · atualizada pelo Notion (antes {fmtDate(mudancaNotion.anterior)})</span>}
+        </dd></div>
         <div><dt>Notion</dt><dd>{item.notionId
           ? item.notionId
           : ((isAuthor || isApprover) ? <button className="tl-link" onClick={() => setPainel("notion")}>+ vincular</button> : <span className="dd-sub">—</span>)}</dd></div>
@@ -2343,8 +2390,8 @@ function EditPanel({ item, currentUser, onUpdate, toast, close }) {
         <Field label="Link de mídia" hint="Opcional">
           <input className="input" value={f.linkMidia} onChange={setE("linkMidia")} placeholder="https://…" />
         </Field>
-        <Field label="Data de postagem prevista" hint="Opcional">
-          <input className="input" type="date" value={f.dataPostagem} onChange={setE("dataPostagem")} />
+        <Field label="Data de postagem prevista" hint={item.notionId ? "Vem do Notion (Dia de Postagem) — mude lá" : "Opcional"}>
+          <input className="input" type="date" value={f.dataPostagem} onChange={setE("dataPostagem")} disabled={!!item.notionId} />
         </Field>
       </div>
       <div className="form-grid">
@@ -3363,6 +3410,23 @@ function App() {
       window.removeEventListener("focus", atualizar);
       document.removeEventListener("visibilitychange", atualizar);
     };
+  }, []);
+
+  // Datas de publicação vindas do Notion: na primeira carga e depois a cada 10 minutos (sem aviso no Teams).
+  const itemsRef = React.useRef(items);
+  itemsRef.current = items;
+  const notionSincronizado = React.useRef(false);
+  const aplicarPatch = (id, patch) => setItems(arr => arr ? arr.map(it => it.id === id ? { ...it, ...patch } : it) : arr);
+  useEffect_(() => {
+    if (!items || notionSincronizado.current) return;
+    notionSincronizado.current = true;
+    sincronizarDatasNotion(items, aplicarPatch).catch(() => {});
+  }, [items]);
+  useEffect_(() => {
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") sincronizarDatasNotion(itemsRef.current, aplicarPatch).catch(() => {});
+    }, 10 * 60000);
+    return () => clearInterval(t);
   }, []);
 
   function showToast(msg, kind = "info") {
