@@ -425,6 +425,9 @@ fieldset.form-sec > legend + *{ clear:both; }
 .tl-head{ display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; font-size:14.5px; min-height:28px; padding-top:4px; box-sizing:border-box; }
 .tl-date{ font-size:13px; color:var(--ink-2); }
 .tl-tag{ font-size:11.5px; font-weight:700; color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, transparent); padding:2px 8px; border-radius:999px; }
+.tl-tag.is-link{ color:var(--ink-2); background:color-mix(in srgb, var(--ink-2) 10%, transparent); font-weight:600; }
+.link-versao{ display:flex; flex-direction:column; gap:6px; }
+.link-versao .input:disabled{ opacity:.65; }
 .tl-box{ position:relative; background:var(--surface-2); border:1px solid var(--line-2); border-radius:10px; padding:10px 40px 10px 14px; }
 .tl-box.is-warn{ background:#FDF4EE; border-color:#F6DCCB; }
 .tl-box p{ margin:0; font-size:15px; line-height:1.55; white-space:pre-wrap; }
@@ -1616,10 +1619,20 @@ function linhaDoTempo(item) {
   const ev = [];
   // Rodada "autor" = versão nova enviada pelo autor antes de qualquer decisão (sem pedido de ajuste).
   const antecipada = (k) => k >= 2 && hist[k - 2] && hist[k - 2].tipo === "autor" ? { antecipada: true, nota: hist[k - 2].nota } : {};
+  // Link de cada versão: a versão k (antiga) guarda o link em hist[k-1].linkMidia; a atual usa item.linkMidia.
+  // Rodadas anteriores a 17/11/2026 não guardavam o link (linkMidia undefined).
+  const linkDe = (k) => k <= N ? hist[k - 1].linkMidia : (item.linkMidia || "");
+  const infoLink = (k) => {
+    const o = { link: linkDe(k) };
+    const ent = k >= 2 ? hist[k - 2] : null; // entrada criada quando a versão k foi enviada
+    if (ent && ent.linkMantido) o.linkMantido = true;
+    else if (ent && ent.linkMidia !== undefined && o.link !== undefined && (ent.linkMidia || "") !== (o.link || "")) o.linkNovo = true;
+    return o;
+  };
   hist.forEach((h, i) => {
     const k = i + 1;
     ev.push({ tipo: "versao", n: k, data: k === 1 ? item.dataEnvio : hist[i - 1].dataReenvio,
-      texto: h.texto != null ? h.texto : (k === 1 ? item.conteudo : null), ...antecipada(k) });
+      texto: h.texto != null ? h.texto : (k === 1 ? item.conteudo : null), ...antecipada(k), ...infoLink(k) });
     if (h.parecerSecundario) ev.push({ tipo: "secundario", n: k, quem: h.secundario || item.aprovadorSecundario,
       parecer: h.parecerSecundario, comentario: h.comentarioSecundario });
     if (h.tipo === "autor") return;
@@ -1634,7 +1647,7 @@ function linhaDoTempo(item) {
 
   const n = N + 1;
   ev.push({ tipo: "versao", n, atual: true, data: N === 0 ? item.dataEnvio : hist[N - 1].dataReenvio,
-    texto: N === 0 ? item.conteudo : (item.versaoCorrigida || item.conteudo), ...antecipada(n) });
+    texto: N === 0 ? item.conteudo : (item.versaoCorrigida || item.conteudo), ...antecipada(n), ...infoLink(n) });
   if (item.parecerSecundario) ev.push({ tipo: "secundario", n, atual: true, quem: item.aprovadorSecundario,
     parecer: item.parecerSecundario, comentario: item.comentarioSecundario });
   const decisoes = [];
@@ -1802,7 +1815,9 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
     if (e.tipo === "versao") {
       dot = <span className="tl-dot is-versao">V{e.n}</span>;
       const campoEd = e.n === 1 ? "conteudo" : (e.atual ? "versaoCorrigida" : null);
-      head = <><b>{item.autor} enviou a versão {e.n}{e.antecipada ? " antes da decisão" : ""}</b>{quando}{e.atual && eventos.filter(x => x.tipo === "versao").length > 1 && <span className="tl-tag">versão atual</span>}{campoEd && <EditedTag item={item} campo={campoEd} />}</>;
+      head = <><b>{item.autor} enviou a versão {e.n}{e.antecipada ? " antes da decisão" : ""}</b>{quando}{e.atual && eventos.filter(x => x.tipo === "versao").length > 1 && <span className="tl-tag">versão atual</span>}{campoEd && <EditedTag item={item} campo={campoEd} />}
+        {e.linkMantido && <span className="tl-tag is-link" title="O link é o mesmo da versão anterior; o arquivo dentro dele foi atualizado">mesmo link · arquivo atualizado em {fmtDate(e.data)}</span>}
+        {e.linkNovo && <span className="tl-tag is-link" title="Esta versão trocou o link da arte">link novo</span>}</>;
       const versao = e.n === 1 ? "original" : (e.atual ? "corrigida" : "anterior");
       const notaAutor = e.antecipada && e.nota ? <div className="tl-box"><p><b>O que mudou:</b> {e.nota}</p></div> : null;
       if (e.atual) {
@@ -1818,6 +1833,11 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
             {aberta && (e.texto != null
               ? <CommentableContent item={item} currentUser={currentUser} onUpdate={onUpdate} versao={versao} texto={e.texto} rodada={e.n} rotulo={null} semLink />
               : <p className="tl-muted">O texto desta versão não foi guardado (rodadas anteriores a 27/10/2026 guardavam só a primeira e a última versão).</p>)}
+            {aberta && e.link && (
+              <a className="media-link" href={e.link} target="_blank" rel="noreferrer">
+                <Icon name="link" size={14} />Link da versão {e.n}: {e.link}
+              </a>
+            )}
           </>
         );
       }
@@ -2420,16 +2440,52 @@ function EditPanel({ item, currentUser, onUpdate, toast, close }) {
 }
 
 /* ════════════════════ VERSÃO CORRIGIDA (reenvio) ════════════════════ */
+/* Link da arte por versão: cada versão guarda o próprio link no histórico.
+   "Mesmo link" = o arquivo foi atualizado dentro do mesmo link (selo na linha do tempo). */
+function LinkVersaoCampo({ item, link, setLink, mesmo, setMesmo }) {
+  const tinha = !!(item.linkMidia || "").trim();
+  return (
+    <div className="link-versao">
+      <label className="field-label">Link da arte ou do arquivo desta versão</label>
+      <input className="input" value={mesmo ? (item.linkMidia || "") : link} disabled={mesmo}
+        onChange={(e) => setLink(e.target.value)} placeholder="https://… (Figma, SharePoint, Drive)" />
+      {tinha && (
+        <label className="cc-check">
+          <input type="checkbox" checked={mesmo} onChange={(e) => { setMesmo(e.target.checked); if (e.target.checked) setLink(item.linkMidia || ""); }} />
+          <span>O link é o mesmo, só atualizei o conteúdo dentro dele</span>
+        </label>
+      )}
+      {tinha && !mesmo && link.trim() !== (item.linkMidia || "").trim() && (
+        <p className="action-note">O link anterior fica guardado na versão anterior da linha do tempo.</p>
+      )}
+    </div>
+  );
+}
+// Campos de link que entram na entrada do histórico e no patch.
+function dadosLinkVersao(item, link, mesmo) {
+  const anterior = (item.linkMidia || "").trim();
+  const novo = mesmo ? anterior : link.trim();
+  return {
+    entrada: { linkMidia: anterior, linkMantido: !!(mesmo && anterior) },
+    patch: novo !== anterior ? { linkMidia: novo } : {},
+    mudou: novo !== anterior || !!(mesmo && anterior),
+  };
+}
+
 function ResendPanel({ item, onUpdate, toast }) {
   const [text, setText] = useS(item.versaoCorrigida || item.conteudo);
   const [checkIA, setCheckIA] = useS(false);
+  const [link, setLink] = useS(item.linkMidia || "");
+  const [mesmo, setMesmo] = useS(false);
   const exigeCheck = needsIACheck(item);
 
   function resend() {
     if (!text.trim()) return;
     if (exigeCheck && !checkIA) { toast("Confirme que passou a versão corrigida pelo check de IA.", "error"); return; }
     // Guarda a rodada inteira (texto revisado + todos os pareceres), porque o reenvio limpa esses campos.
+    const lk = dadosLinkVersao(item, link, mesmo);
     const entrada = {
+      ...lk.entrada,
       rodada: (item.historicoAjustes || []).length + 1,
       aprovador: item.aprovador,
       comentario: item.comentarios,
@@ -2454,6 +2510,7 @@ function ResendPanel({ item, onUpdate, toast }) {
       parecerSecundario: "", comentarioSecundario: "",
       statusExterno: "", comentarioExterno: "", dataExterna: "",
       imagensAjuste: [], anexosAprovacao: [],
+      ...lk.patch,
       historicoAjustes: [...(item.historicoAjustes || []), entrada],
     });
     toast("Versão corrigida reenviada para a fila.", "success");
@@ -2465,6 +2522,7 @@ function ResendPanel({ item, onUpdate, toast }) {
       <p className="action-note">Edite abaixo a versão com os ajustes pedidos e reenvie. A versão original continua visível para comparação.</p>
       <textarea className="input textarea" rows={7} value={text} onChange={(e) => setText(e.target.value)}
         placeholder="Cole/edite aqui a versão corrigida do conteúdo." />
+      <LinkVersaoCampo item={item} link={link} setLink={setLink} mesmo={mesmo} setMesmo={setMesmo} />
       {exigeCheck && (
         <>
           <div className="check-steps">
@@ -2491,15 +2549,20 @@ function NovaVersaoPanel({ item, onUpdate, toast, close }) {
   const [text, setText] = useS(item.versaoCorrigida || item.conteudo);
   const [nota, setNota] = useS("");
   const [checkIA, setCheckIA] = useS(false);
+  const [link, setLink] = useS(item.linkMidia || "");
+  const [mesmo, setMesmo] = useS(false);
   const exigeCheck = needsIACheck(item);
   const n = (item.historicoAjustes || []).length + 1;
 
   function enviar() {
     const atual = item.versaoCorrigida || item.conteudo;
+    const lk = dadosLinkVersao(item, link, mesmo);
     if (!text.trim()) return;
-    if (text.trim() === (atual || "").trim()) { toast("O texto está igual ao da versão atual.", "error"); return; }
+    // Texto igual só passa se a arte mudou (link novo ou arquivo atualizado no mesmo link).
+    if (text.trim() === (atual || "").trim() && !lk.mudou) { toast("Nada mudou: o texto e o link estão iguais aos da versão atual.", "error"); return; }
     if (exigeCheck && !checkIA) { toast("Confirme que passou a nova versão pelo check de IA.", "error"); return; }
     const entrada = {
+      ...lk.entrada,
       rodada: n,
       tipo: "autor",
       nota: nota.trim(),
@@ -2514,6 +2577,7 @@ function NovaVersaoPanel({ item, onUpdate, toast, close }) {
       versaoCorrigida: text,
       checkIA: exigeCheck ? true : item.checkIA,
       parecerSecundario: "", comentarioSecundario: "",
+      ...lk.patch,
       historicoAjustes: [...(item.historicoAjustes || []), entrada],
     });
     toast(`Versão ${n + 1} enviada. ${item.aprovador || "O aprovador"} vai avaliar esta versão.`, "success");
@@ -2528,6 +2592,7 @@ function NovaVersaoPanel({ item, onUpdate, toast, close }) {
         placeholder="Texto da nova versão." />
       <input className="input" value={nota} onChange={(e) => setNota(e.target.value)}
         placeholder="O que mudou? (opcional — ex.: correções sugeridas na reunião de hoje)" />
+      <LinkVersaoCampo item={item} link={link} setLink={setLink} mesmo={mesmo} setMesmo={setMesmo} />
       {exigeCheck && (
         <>
           <div className="check-steps">
