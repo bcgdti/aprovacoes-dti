@@ -126,3 +126,29 @@ on conflict (nome) do nothing;
 -- Sem isso o Supabase não avisa o sistema quando alguém envia ou muda um conteúdo.
 -- Se a tabela já estiver na publicação, o comando dá erro "already member" (pode ignorar).
 alter publication supabase_realtime add table conteudos;
+
+-- 10. Colunas e permissões que já existem em produção, mas faltavam neste arquivo (2026-11-18)
+-- Necessário numa instalação do zero. Em produção não precisa rodar: lá isso já funciona (criado direto no painel).
+alter table conteudos add column if not exists historico_ajustes jsonb default '[]'::jsonb; -- uma entrada por versão substituída
+alter table conteudos add column if not exists imagens_ajuste    jsonb default '[]'::jsonb; -- URLs das imagens do pedido de ajuste
+alter table conteudos add column if not exists anexos_aprovacao  jsonb default '[]'::jsonb;
+alter table conteudos add column if not exists notion_id         text  default '';
+
+-- Equipe editável pela tela de configuração (admins): adicionar pessoa, ativar/desativar, e-mail.
+drop policy if exists "equipe_insert" on equipe;
+drop policy if exists "equipe_update" on equipe;
+create policy "equipe_insert" on equipe for insert to anon with check (true);
+create policy "equipe_update" on equipe for update to anon using (true) with check (true);
+
+-- Token do Notion (o valor é preenchido direto no Supabase, nunca neste arquivo).
+insert into config (chave, valor) values ('notion_token', '') on conflict (chave) do nothing;
+
+-- Storage: bucket público das imagens dos pedidos de ajuste.
+insert into storage.buckets (id, name, public) values ('imagens-ajuste', 'imagens-ajuste', true)
+on conflict (id) do nothing;
+drop policy if exists "imagens_ajuste_insert" on storage.objects;
+drop policy if exists "imagens_ajuste_update" on storage.objects;
+drop policy if exists "imagens_ajuste_select" on storage.objects;
+create policy "imagens_ajuste_insert" on storage.objects for insert to anon with check (bucket_id = 'imagens-ajuste');
+create policy "imagens_ajuste_update" on storage.objects for update to anon using (bucket_id = 'imagens-ajuste');
+create policy "imagens_ajuste_select" on storage.objects for select to anon using (bucket_id = 'imagens-ajuste');
