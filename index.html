@@ -1595,6 +1595,9 @@ function proximoPasso(item, currentUser) {
       if (extPend)
         return { tom: "externa", agora: `aguardando o retorno de ${contato} (externa)`,
           titulo: `Próximo passo: registrar o retorno de ${contato}`, sub: "Aprovado internamente. Falta a aprovação externa." };
+      if (atualizacaoSemAprovacao(item))
+        return { tom: "aprovado", titulo: "Aprovado: liberado para publicação",
+          sub: `Versão ${n - 1} aprovada${item.dataDecisao ? " em " + fmtDate(item.dataDecisao) : ""}. A versão ${n} foi enviada depois, como atualização, sem nova aprovação.` };
       return { tom: "aprovado", titulo: "Aprovado: liberado para publicação",
         sub: item.dataDecisao ? "Aprovado em " + fmtDate(item.dataDecisao) + "." : "" };
     }
@@ -1611,6 +1614,13 @@ function proximoPasso(item, currentUser) {
   }
 }
 
+// Última rodada = atualização enviada depois da aprovação, sem pedir nova aprovação (card segue aprovado).
+function atualizacaoSemAprovacao(item) {
+  const hist = item.historicoAjustes || [];
+  const ult = hist[hist.length - 1];
+  return !!(ult && ult.tipo === "posAprovacao" && !ult.reabriu);
+}
+
 // Linha do tempo em ordem cronológica, a partir das rodadas guardadas e dos campos atuais.
 function linhaDoTempo(item) {
   const hist = item.historicoAjustes || [];
@@ -1618,7 +1628,16 @@ function linhaDoTempo(item) {
   const porData = (a, b) => (parseData(a.data) || 0) - (parseData(b.data) || 0);
   const ev = [];
   // Rodada "autor" = versão nova enviada pelo autor antes de qualquer decisão (sem pedido de ajuste).
-  const antecipada = (k) => k >= 2 && hist[k - 2] && hist[k - 2].tipo === "autor" ? { antecipada: true, nota: hist[k - 2].nota } : {};
+  // Rodada "posAprovacao" = atualização enviada pelo autor depois da aprovação (reabriu = pediu nova aprovação).
+  const antecipada = (k) => {
+    const ent = k >= 2 ? hist[k - 2] : null;
+    if (ent && ent.tipo === "autor") return { antecipada: true, nota: ent.nota };
+    if (ent && ent.tipo === "posAprovacao") return { posAprovacao: true, reabriu: !!ent.reabriu, nota: ent.nota };
+    return {};
+  };
+  // Atualizações seguidas sem nova aprovação guardam a mesma aprovação: mostra só uma vez.
+  const mesmaAprovacao = (a, b) => !!(a && b && a.tipo === "posAprovacao" && !a.reabriu && a.dataDecisao === b.dataDecisao);
+  const mesmaExterna = (a, b) => !!(a && b && a.tipo === "posAprovacao" && !a.reabriu && a.statusExterno === b.statusExterno && a.dataExterna === b.dataExterna);
   // Link de cada versão: a versão k (antiga) guarda o link em hist[k-1].linkMidia; a atual usa item.linkMidia.
   // Rodadas anteriores a 17/11/2026 não guardavam o link (linkMidia undefined).
   const linkDe = (k) => k <= N ? hist[k - 1].linkMidia : (item.linkMidia || "");
@@ -1636,6 +1655,16 @@ function linhaDoTempo(item) {
     if (h.parecerSecundario) ev.push({ tipo: "secundario", n: k, quem: h.secundario || item.aprovadorSecundario,
       parecer: h.parecerSecundario, comentario: h.comentarioSecundario });
     if (h.tipo === "autor") return;
+    if (h.tipo === "posAprovacao") {
+      const ant = hist[i - 1];
+      const dec = [];
+      if (h.dataDecisao && !mesmaAprovacao(ant, h))
+        dec.push({ tipo: "aprovou", n: k, quem: h.aprovador, data: h.dataDecisao, comentario: h.comentario });
+      if (h.statusExterno && !mesmaExterna(ant, h)) dec.push({ tipo: "externa", n: k, quem: h.contatoExterno || item.contatoExterno,
+        status: h.statusExterno, data: h.dataExterna, comentario: h.comentarioExterno });
+      ev.push(...dec.sort(porData));
+      return;
+    }
     const decisoes = [];
     if (h.comentario || (!h.parecerSecundario && !h.statusExterno))
       decisoes.push({ tipo: "ajustes", n: k, quem: h.aprovador, data: h.dataDecisao, comentario: h.comentario,
@@ -1655,9 +1684,11 @@ function linhaDoTempo(item) {
   if (st === "Ajustes solicitados" && (item.comentarios || (item.parecerSecundario !== "Com ressalvas" && item.statusExterno !== "Com ressalvas")))
     decisoes.push({ tipo: "ajustes", n, atual: true, quem: item.aprovador, data: item.dataDecisao, comentario: item.comentarios,
       imagens: item.imagensAjuste, anexos: item.anexosAprovacao });
-  if ((st === "Aguardando aprovação externa" || st === "Aprovado") && item.dataDecisao)
+  // Depois de uma atualização sem nova aprovação, a aprovação (e a externa) já aparece na versão anterior.
+  const ultH = hist[N - 1];
+  if ((st === "Aguardando aprovação externa" || st === "Aprovado") && item.dataDecisao && !mesmaAprovacao(ultH, item))
     decisoes.push({ tipo: "aprovou", n, atual: true, quem: item.aprovador, data: item.dataDecisao, comentario: item.comentarios });
-  if (item.statusExterno) decisoes.push({ tipo: "externa", n, atual: true, quem: item.contatoExterno,
+  if (item.statusExterno && !mesmaExterna(ultH, item)) decisoes.push({ tipo: "externa", n, atual: true, quem: item.contatoExterno,
     status: item.statusExterno, data: item.dataExterna, comentario: item.comentarioExterno });
   ev.push(...decisoes.sort(porData));
   if (item.status === "Cancelado") {
@@ -1743,8 +1774,11 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
   // Ações raras ficam no menu "Mais ações".
   // Nova versão antes da decisão: só o autor, só enquanto aguarda a aprovação interna.
   const podeNovaVersao = isAuthor && item.status === "Aguardando aprovação";
+  // Atualização depois da aprovação: só o autor, pelo menu (ele escolhe se precisa de nova aprovação).
+  const podeAtualizarAprovado = isAuthor && STATUS_POS_APROVACAO.includes(item.status);
   const acoes = [
     podeNovaVersao && { label: "Enviar nova versão", run: () => setPainel("novaVersao") },
+    podeAtualizarAprovado && { label: "Enviar atualização (nova versão)", run: () => setPainel("novaVersao") },
     isAuthor && { label: "Editar envio (correção pequena)", run: () => setPainel("editar") },
     (isAuthor || isApprover) && { label: item.notionId ? "Trocar ID do Notion" : "Vincular ao Notion", run: () => setPainel("notion") },
     item.precisaExterna && item.statusExterno && !isCancelado && (isAuthor || isApprover) && { label: "Alterar retorno externo", run: () => setPainel("externa") },
@@ -1815,11 +1849,12 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
     if (e.tipo === "versao") {
       dot = <span className="tl-dot is-versao">V{e.n}</span>;
       const campoEd = e.n === 1 ? "conteudo" : (e.atual ? "versaoCorrigida" : null);
-      head = <><b>{item.autor} enviou a versão {e.n}{e.antecipada ? " antes da decisão" : ""}</b>{quando}{e.atual && eventos.filter(x => x.tipo === "versao").length > 1 && <span className="tl-tag">versão atual</span>}{campoEd && <EditedTag item={item} campo={campoEd} />}
+      head = <><b>{item.autor} enviou a versão {e.n}{e.antecipada ? " antes da decisão" : e.posAprovacao ? " depois da aprovação" : ""}</b>{quando}{e.atual && eventos.filter(x => x.tipo === "versao").length > 1 && <span className="tl-tag">versão atual</span>}{campoEd && <EditedTag item={item} campo={campoEd} />}
         {e.linkMantido && <span className="tl-tag is-link" title="O link é o mesmo da versão anterior; o arquivo dentro dele foi atualizado">mesmo link · arquivo atualizado em {fmtDate(e.data)}</span>}
-        {e.linkNovo && <span className="tl-tag is-link" title="Esta versão trocou o link da arte">link novo</span>}</>;
+        {e.linkNovo && <span className="tl-tag is-link" title="Esta versão trocou o link da arte">link novo</span>}
+        {e.posAprovacao && <span className="tl-tag is-link">{e.reabriu ? "pediu nova aprovação" : "atualização sem nova aprovação"}</span>}</>;
       const versao = e.n === 1 ? "original" : (e.atual ? "corrigida" : "anterior");
-      const notaAutor = e.antecipada && e.nota ? <div className="tl-box"><p><b>O que mudou:</b> {e.nota}</p></div> : null;
+      const notaAutor = (e.antecipada || e.posAprovacao) && e.nota ? <div className="tl-box"><p><b>O que mudou:</b> {e.nota}</p></div> : null;
       if (e.atual) {
         corpo = <>{notaAutor}<CommentableContent item={item} currentUser={currentUser} onUpdate={onUpdate} versao={versao} texto={e.texto} rodada={e.n} rotulo={null} /></>;
       } else {
@@ -1928,7 +1963,7 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
       {item.status === "Ajustes solicitados" && isAuthor && (
         <ResendPanel item={item} onUpdate={onUpdate} onDelete={onDelete} toast={toast} />
       )}
-      {painel === "novaVersao" && podeNovaVersao && <NovaVersaoPanel item={item} onUpdate={onUpdate} toast={toast} close={fechar} />}
+      {painel === "novaVersao" && (podeNovaVersao || podeAtualizarAprovado) && <NovaVersaoPanel item={item} onUpdate={onUpdate} toast={toast} close={fechar} />}
       {externaAberta && <ExternalPanel item={item} onUpdate={onUpdate} toast={toast} />}
       {painel === "cancelar" && <CancelPanel item={item} currentUser={currentUser} onUpdate={onUpdate} toast={toast} close={fechar} />}
       {painel === "editar" && <EditPanel item={item} currentUser={currentUser} onUpdate={onUpdate} toast={toast} close={fechar} />}
@@ -2542,17 +2577,23 @@ function ResendPanel({ item, onUpdate, toast }) {
   );
 }
 
-/* ════════════════════ NOVA VERSÃO ANTES DA DECISÃO (autor) ════════════════════ */
-// O autor manda uma versão nova enquanto o card ainda espera a aprovação (ex.: correções vindas de uma reunião).
-// Fica registrada como rodada "autor" no histórico, sem decisão de aprovador; o card segue em "Aguardando aprovação".
+/* ════════════════════ NOVA VERSÃO (autor): antes da decisão ou depois da aprovação ════════════════════ */
+// Antes da decisão: rodada "autor"; o card segue em "Aguardando aprovação" com o mesmo aprovador.
+// Depois da aprovação: rodada "posAprovacao", com a aprovação da versão anterior guardada. O autor escolhe:
+//   - só registrar (reabriu: false): o card continua aprovado e o aprovador recebe um aviso no Teams;
+//   - pedir nova aprovação (reabriu: true): o card volta para "Aguardando aprovação" com o mesmo aprovador.
+const STATUS_POS_APROVACAO = ["Aprovado", "Aguardando aprovação externa"];
 function NovaVersaoPanel({ item, onUpdate, toast, close }) {
   const [text, setText] = useS(item.versaoCorrigida || item.conteudo);
   const [nota, setNota] = useS("");
   const [checkIA, setCheckIA] = useS(false);
   const [link, setLink] = useS(item.linkMidia || "");
   const [mesmo, setMesmo] = useS(false);
+  const [reabrir, setReabrir] = useS(null); // só depois da aprovação: false = só registrar, true = nova aprovação
   const exigeCheck = needsIACheck(item);
   const n = (item.historicoAjustes || []).length + 1;
+  const pos = STATUS_POS_APROVACAO.includes(item.status);
+  const aprovador = item.aprovador || "o aprovador";
 
   function enviar() {
     const atual = item.versaoCorrigida || item.conteudo;
@@ -2560,11 +2601,11 @@ function NovaVersaoPanel({ item, onUpdate, toast, close }) {
     if (!text.trim()) return;
     // Texto igual só passa se a arte mudou (link novo ou arquivo atualizado no mesmo link).
     if (text.trim() === (atual || "").trim() && !lk.mudou) { toast("Nada mudou: o texto e o link estão iguais aos da versão atual.", "error"); return; }
+    if (pos && reabrir === null) { toast("Escolha se esta atualização precisa de nova aprovação.", "error"); return; }
     if (exigeCheck && !checkIA) { toast("Confirme que passou a nova versão pelo check de IA.", "error"); return; }
-    const entrada = {
+    const base = {
       ...lk.entrada,
       rodada: n,
-      tipo: "autor",
       nota: nota.trim(),
       dataReenvio: nowStr(),
       texto: atual,
@@ -2572,27 +2613,86 @@ function NovaVersaoPanel({ item, onUpdate, toast, close }) {
       parecerSecundario: item.parecerSecundario || "",
       comentarioSecundario: item.comentarioSecundario || "",
     };
-    // Sem "status" no patch: o card continua aguardando o mesmo aprovador (e o Teams avisa "Nova versão enviada pelo autor").
-    onUpdate(item.id, {
+    const comHistorico = (entrada) => [...(item.historicoAjustes || []), entrada];
+
+    if (!pos) {
+      // Sem "status" no patch: o card continua aguardando o mesmo aprovador (e o Teams avisa "Nova versão enviada pelo autor").
+      onUpdate(item.id, {
+        versaoCorrigida: text,
+        checkIA: exigeCheck ? true : item.checkIA,
+        parecerSecundario: "", comentarioSecundario: "",
+        ...lk.patch,
+        historicoAjustes: comHistorico({ ...base, tipo: "autor" }),
+      });
+      toast(`Versão ${n + 1} enviada. ${item.aprovador || "O aprovador"} vai avaliar esta versão.`, "success");
+      close();
+      return;
+    }
+
+    // Depois da aprovação: guarda a aprovação (e a externa, se houver) da versão que está sendo substituída.
+    const entrada = {
+      ...base,
+      tipo: "posAprovacao",
+      reabriu: !!reabrir,
+      statusAnterior: item.status,
+      aprovador: item.aprovador,
+      comentario: item.comentarios || "",
+      dataDecisao: item.dataDecisao || "",
+      contatoExterno: item.contatoExterno || "",
+      statusExterno: item.statusExterno || "",
+      comentarioExterno: item.comentarioExterno || "",
+      dataExterna: item.dataExterna || "",
+      anexosAprovacao: item.anexosAprovacao || [],
+    };
+    const comum = {
       versaoCorrigida: text,
       checkIA: exigeCheck ? true : item.checkIA,
       parecerSecundario: "", comentarioSecundario: "",
       ...lk.patch,
-      historicoAjustes: [...(item.historicoAjustes || []), entrada],
-    });
-    toast(`Versão ${n + 1} enviada. ${item.aprovador || "O aprovador"} vai avaliar esta versão.`, "success");
+      historicoAjustes: comHistorico(entrada),
+    };
+    if (reabrir) {
+      // Volta para a fila do mesmo aprovador, como num reenvio: limpa a decisão interna e a externa.
+      onUpdate(item.id, {
+        ...comum,
+        status: "Aguardando aprovação",
+        comentarios: "", dataDecisao: "",
+        statusExterno: "", comentarioExterno: "", dataExterna: "",
+        imagensAjuste: [], anexosAprovacao: [],
+      });
+      toast(`Versão ${n + 1} enviada. ${item.aprovador || "O aprovador"} precisa aprovar de novo.`, "success");
+    } else {
+      // Status, decisão e externa ficam como estão: o card continua aprovado.
+      onUpdate(item.id, comum);
+      toast(`Versão ${n + 1} registrada. O card continua aprovado e ${aprovador} recebeu um aviso.`, "success");
+    }
     close();
   }
 
   return (
     <div className="action-block">
-      <div className="action-head"><Icon name="send" size={16} /><strong>Enviar nova versão (versão {n + 1})</strong></div>
-      <p className="action-note">Use quando já houver correções antes da decisão. A versão {n} fica guardada na linha do tempo e {item.aprovador || "o aprovador"} passa a avaliar a nova.</p>
+      <div className="action-head"><Icon name="send" size={16} /><strong>{pos ? `Enviar atualização (versão ${n + 1})` : `Enviar nova versão (versão ${n + 1})`}</strong></div>
+      <p className="action-note">{pos
+        ? `O conteúdo já foi aprovado. A versão ${n} e a aprovação dela ficam guardadas na linha do tempo.`
+        : `Use quando já houver correções antes da decisão. A versão ${n} fica guardada na linha do tempo e ${aprovador} passa a avaliar a nova.`}</p>
       <textarea className="input textarea" rows={7} value={text} onChange={(e) => setText(e.target.value)}
         placeholder="Texto da nova versão." />
       <input className="input" value={nota} onChange={(e) => setNota(e.target.value)}
-        placeholder="O que mudou? (opcional — ex.: correções sugeridas na reunião de hoje)" />
+        placeholder={pos ? "O que mudou? (opcional — ex.: troquei a data no último card)" : "O que mudou? (opcional — ex.: correções sugeridas na reunião de hoje)"} />
       <LinkVersaoCampo item={item} link={link} setLink={setLink} mesmo={mesmo} setMesmo={setMesmo} />
+      {pos && (
+        <div className="link-versao">
+          <label className="field-label">Precisa de nova aprovação? <span className="req">*</span></label>
+          <label className="cc-check">
+            <input type="radio" name={"reabrir-" + item.id} checked={reabrir === false} onChange={() => setReabrir(false)} />
+            <span>Não, só registrar. O card continua aprovado e {aprovador} recebe um aviso.</span>
+          </label>
+          <label className="cc-check">
+            <input type="radio" name={"reabrir-" + item.id} checked={reabrir === true} onChange={() => setReabrir(true)} />
+            <span>Sim. O card volta para {aprovador} aprovar a versão {n + 1}{item.statusExterno ? ", e o retorno externo precisa ser registrado de novo" : ""}.</span>
+          </label>
+        </div>
+      )}
       {exigeCheck && (
         <>
           <div className="check-steps">
@@ -2607,7 +2707,7 @@ function NovaVersaoPanel({ item, onUpdate, toast, close }) {
       )}
       <div className="action-row">
         <Button variant="ghost" size="sm" onClick={close}>Voltar</Button>
-        <Button variant="primary" icon="send" disabled={!text.trim() || (exigeCheck && !checkIA)} onClick={enviar}>Enviar versão {n + 1}</Button>
+        <Button variant="primary" icon="send" disabled={!text.trim() || (exigeCheck && !checkIA) || (pos && reabrir === null)} onClick={enviar}>Enviar versão {n + 1}</Button>
       </div>
     </div>
   );
@@ -3309,6 +3409,10 @@ function nowStr() {
 // ── Decide o rótulo da notificação a partir do que mudou ─────────
 function updateLabel(patch) {
   if (patch.cancelamento !== undefined) return ''; // cancelar/reabrir não notifica
+  const hp = patch.versaoCorrigida !== undefined && patch.historicoAjustes;
+  const ult = hp && hp[hp.length - 1];
+  if (ult && ult.tipo === "posAprovacao")
+    return ult.reabriu ? 'Atualização após aprovação: precisa de nova aprovação' : 'Atualização após aprovação (sem nova aprovação)';
   if (patch.statusExterno === 'Aprovado') return 'Aprovação externa concluída';
   if (patch.statusExterno === 'Com ressalvas') return 'Ajustes solicitados (aprovação externa)';
   if (patch.status === 'Aguardando aprovação externa') return 'Aprovado internamente — aguardando externa';
