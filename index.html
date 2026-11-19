@@ -1621,6 +1621,49 @@ function atualizacaoSemAprovacao(item) {
   return !!(ult && ult.tipo === "posAprovacao" && !ult.reabriu);
 }
 
+// Desfazer a última versão enviada (ex.: mandada no card errado), enquanto ninguém agiu sobre ela.
+// Devolve null quando não dá, ou { n, volta, patch } com o card exatamente como estava antes do envio.
+// O que foi desfeito fica em "edicoes" (campo "versaoDesfeita") e aparece na linha do tempo.
+function desfazerVersao(item, por) {
+  const hist = item.historicoAjustes || [];
+  const N = hist.length;
+  if (!N || item.status === "Cancelado") return null;
+  const u = hist[N - 1];
+  const n = N + 1; // versão atual, a que seria desfeita
+  if (u.texto == null) return null; // rodadas antigas não guardavam o texto anterior
+  if (item.parecerSecundario) return null; // o secundário já deu parecer sobre ela
+  if ((item.notas || []).some((x) => x.rodada === n)) return null; // já comentaram trechos dela
+  const semDecisao = item.status === "Aguardando aprovação" && !item.dataDecisao && !item.statusExterno;
+  const base = {
+    versaoCorrigida: N === 1 ? "" : u.texto,
+    parecerSecundario: u.parecerSecundario || "", comentarioSecundario: u.comentarioSecundario || "",
+    historicoAjustes: hist.slice(0, -1),
+    ...(u.linkMidia !== undefined ? { linkMidia: u.linkMidia || "" } : {}),
+  };
+  const decisaoGuardada = {
+    comentarios: u.comentario || "", dataDecisao: u.dataDecisao || "",
+    statusExterno: u.statusExterno || "", comentarioExterno: u.comentarioExterno || "", dataExterna: u.dataExterna || "",
+    anexosAprovacao: u.anexosAprovacao || [],
+  };
+  let patch, volta;
+  if (u.tipo === "autor") {
+    if (!semDecisao) return null;
+    patch = base; volta = item.status;
+  } else if (u.tipo === "posAprovacao" && !u.reabriu) {
+    if (item.status !== u.statusAnterior || item.dataDecisao !== u.dataDecisao) return null;
+    patch = base; volta = item.status;
+  } else if (u.tipo === "posAprovacao") {
+    if (!semDecisao) return null;
+    patch = { ...base, ...decisaoGuardada, status: u.statusAnterior }; volta = u.statusAnterior;
+  } else { // reenvio depois de "Ajustes solicitados"
+    if (!semDecisao) return null;
+    patch = { ...base, ...decisaoGuardada, imagensAjuste: u.imagensAjuste || [], status: "Ajustes solicitados" }; volta = "Ajustes solicitados";
+  }
+  const registro = { campo: "versaoDesfeita", rodada: n, anterior: item.versaoCorrigida || item.conteudo || "",
+    link: item.linkMidia || "", nota: u.nota || "", enviadaEm: u.dataReenvio || "", por: por || "", data: nowStr() };
+  return { n, volta, patch: { ...patch, edicoes: [...(item.edicoes || []), registro] } };
+}
+
 // Linha do tempo em ordem cronológica, a partir das rodadas guardadas e dos campos atuais.
 function linhaDoTempo(item) {
   const hist = item.historicoAjustes || [];
@@ -1691,6 +1734,13 @@ function linhaDoTempo(item) {
   if (item.statusExterno && !mesmaExterna(ultH, item)) decisoes.push({ tipo: "externa", n, atual: true, quem: item.contatoExterno,
     status: item.statusExterno, data: item.dataExterna, comentario: item.comentarioExterno });
   ev.push(...decisoes.sort(porData));
+  // Versões desfeitas entram na posição cronológica (pela data em que foram desfeitas).
+  (item.edicoes || []).filter((x) => x.campo === "versaoDesfeita").forEach((x) => {
+    const t = parseData(x.data) || 0;
+    const i = ev.findIndex((e) => e.data && (parseData(e.data) || 0) > t);
+    const d = { tipo: "desfeita", n: x.rodada, data: x.data, quem: x.por, texto: x.anterior, link: x.link, nota: x.nota, enviadaEm: x.enviadaEm };
+    if (i < 0) ev.push(d); else ev.splice(i, 0, d);
+  });
   if (item.status === "Cancelado") {
     const c = item.cancelamento || {};
     ev.push({ tipo: "cancelado", data: c.data, quem: c.por, motivo: c.motivo, substitutoId: c.substitutoId, comentario: c.comentario });
@@ -1776,9 +1826,12 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
   const podeNovaVersao = isAuthor && item.status === "Aguardando aprovação";
   // Atualização depois da aprovação: só o autor, pelo menu (ele escolhe se precisa de nova aprovação).
   const podeAtualizarAprovado = isAuthor && STATUS_POS_APROVACAO.includes(item.status);
+  // Desfazer a última versão: autor ou perfil master, enquanto ninguém agiu sobre ela.
+  const desfazer = (isAuthor || PERFIS_MASTER.includes(currentUser)) ? desfazerVersao(item, currentUser) : null;
   const acoes = [
     podeNovaVersao && { label: "Enviar nova versão", run: () => setPainel("novaVersao") },
     podeAtualizarAprovado && { label: "Enviar atualização (nova versão)", run: () => setPainel("novaVersao") },
+    desfazer && { label: `Desfazer versão ${desfazer.n}`, run: () => setPainel("desfazer") },
     isAuthor && { label: "Editar envio (correção pequena)", run: () => setPainel("editar") },
     (isAuthor || isApprover) && { label: item.notionId ? "Trocar ID do Notion" : "Vincular ao Notion", run: () => setPainel("notion") },
     item.precisaExterna && item.statusExterno && !isCancelado && (isAuthor || isApprover) && { label: "Alterar retorno externo", run: () => setPainel("externa") },
@@ -1901,6 +1954,22 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
       corpo = e.atual
         ? Comentario({ field: "externo", valor: e.comentario, pode: (isApprover || isAuthor) && !!e.comentario, tom: e.status === "Com ressalvas" ? "warn" : null })
         : (e.comentario ? <div className="tl-box"><p>{e.comentario}</p></div> : null);
+    } else if (e.tipo === "desfeita") {
+      const chave = "d" + e.n + e.data;
+      const aberta = !!abertas[chave];
+      dot = <span className="tl-dot is-neutro"><Icon name="x" size={15} /></span>;
+      head = <><b>{e.quem || item.autor} desfez a versão {e.n}</b>{quando}</>;
+      corpo = <>
+        <span className="tl-sub">A versão {e.n}{e.enviadaEm ? ` enviada em ${fmtDataHora(e.enviadaEm)}` : ""} foi retirada e o card voltou a como estava antes dela.</span>
+        <button className="tl-link" onClick={() => setAbertas({ ...abertas, [chave]: !aberta })}>
+          {aberta ? "Ocultar o que foi desfeito" : "Ver o que foi desfeito"}
+        </button>
+        {aberta && <div className="tl-box">
+          {e.nota && <p><b>O que mudou (na versão desfeita):</b> {e.nota}</p>}
+          <p style={{ whiteSpace: "pre-wrap" }}>{e.texto || "(vazio)"}</p>
+          {e.link && <a className="media-link" href={e.link} target="_blank" rel="noreferrer"><Icon name="link" size={14} />{e.link}</a>}
+        </div>}
+      </>;
     } else if (e.tipo === "cancelado") {
       dot = <span className="tl-dot is-neutro"><Icon name="x" size={15} /></span>;
       head = <><b>Cancelado{e.quem ? " por " + e.quem : ""}</b>{quando}</>;
@@ -1966,6 +2035,24 @@ function ItemDetail({ item, currentUser, onUpdate, onDelete, toast }) {
       {painel === "novaVersao" && (podeNovaVersao || podeAtualizarAprovado) && <NovaVersaoPanel item={item} onUpdate={onUpdate} toast={toast} close={fechar} />}
       {externaAberta && <ExternalPanel item={item} onUpdate={onUpdate} toast={toast} />}
       {painel === "cancelar" && <CancelPanel item={item} currentUser={currentUser} onUpdate={onUpdate} toast={toast} close={fechar} />}
+      {painel === "desfazer" && desfazer && (
+        <div className="action-block">
+          <div className="action-head"><Icon name="x" size={16} /><strong>Desfazer a versão {desfazer.n}</strong></div>
+          <p className="action-note">
+            A versão {desfazer.n} sai do card e ele volta a ficar como estava antes dela: versão {desfazer.n - 1}, status "{desfazer.volta}"
+            {desfazer.volta === "Ajustes solicitados" ? ", com o pedido de ajustes de antes" : ""}.
+            O texto desfeito fica guardado na linha do tempo, e {item.aprovador || "o aprovador"} recebe um aviso no Teams.
+          </p>
+          <div className="action-row">
+            <Button variant="ghost" size="sm" onClick={fechar}>Voltar</Button>
+            <Button variant="primary" icon="x" onClick={() => {
+              onUpdate(item.id, desfazer.patch);
+              toast(`Versão ${desfazer.n} desfeita. O card voltou para a versão ${desfazer.n - 1}.`, "success");
+              fechar();
+            }}>Desfazer versão {desfazer.n}</Button>
+          </div>
+        </div>
+      )}
       {painel === "editar" && <EditPanel item={item} currentUser={currentUser} onUpdate={onUpdate} toast={toast} close={fechar} />}
       {painel === "notion" && (
         <div className="action-block">
@@ -3409,6 +3496,8 @@ function nowStr() {
 // ── Decide o rótulo da notificação a partir do que mudou ─────────
 function updateLabel(patch) {
   if (patch.cancelamento !== undefined) return ''; // cancelar/reabrir não notifica
+  const ed = patch.historicoAjustes && patch.edicoes && patch.edicoes[patch.edicoes.length - 1];
+  if (ed && ed.campo === "versaoDesfeita") return `Versão ${ed.rodada} desfeita (enviada por engano)`;
   const hp = patch.versaoCorrigida !== undefined && patch.historicoAjustes;
   const ult = hp && hp[hp.length - 1];
   if (ult && ult.tipo === "posAprovacao")
